@@ -18,6 +18,9 @@ import { BaseLayerId, SavedMapView, TileLayerSettings } from "./settings";
 
 export type { MapMarker };
 
+/** Zoom used when following a geotag link, unless already closer in. */
+const FOCUS_ZOOM = 13;
+
 export interface MapSurfaceOptions {
     tiles: Record<BaseLayerId, TileLayerSettings>;
     /** Where to open. Restored from settings. */
@@ -104,6 +107,21 @@ export class MapSurface {
     /** Re-measure after the containing leaf changes size. */
     resize(): void {
         this.map.invalidateSize();
+    }
+
+    /**
+     * Centre the map on a point, zooming in if the map is further out than
+     * {@link FOCUS_ZOOM}. An existing closer zoom is left alone, so following a
+     * geotag link does not throw away the detail the user was already at.
+     */
+    focus(coordinate: Coordinate): void {
+        // The map may have been created moments ago, in a leaf that has not been
+        // laid out yet; centring a zero-sized map puts the point off-screen.
+        this.map.invalidateSize();
+        this.map.setView(
+            [coordinate.lat, coordinate.lon],
+            Math.max(this.map.getZoom(), FOCUS_ZOOM)
+        );
     }
 
     /** The current view, normalised into ranges the coordinate parser accepts. */

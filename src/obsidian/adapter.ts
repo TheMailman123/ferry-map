@@ -12,11 +12,22 @@ export interface ObsidianInterface {
     markdownFiles(): TFile[];
     /** A note's cached metadata, or null if Obsidian has not indexed it yet. */
     metadata(file: TFile): CachedMetadata | null;
-    /** Reveal a note, scrolling to a line where one is given. */
-    openNote(path: string, line: number | null): Promise<void>;
+    /**
+     * Reveal a note, scrolling to a line where one is given.
+     *
+     * @param beside the leaf the request came from; the note opens next to it
+     */
+    openNote(
+        path: string,
+        line: number | null,
+        beside: WorkspaceLeaf | null
+    ): Promise<void>;
 }
 
 export class ObsidianIO implements ObsidianInterface {
+    /** The pane notes opened from the map are shown in, reused across clicks. */
+    private noteLeaf: WorkspaceLeaf | null = null;
+
     constructor(private readonly app: App) {}
 
     markdownFiles(): TFile[] {
@@ -35,13 +46,17 @@ export class ObsidianIO implements ObsidianInterface {
      *   file that has been deleted is a bug in the index, not something to
      *   paper over by doing nothing
      */
-    async openNote(path: string, line: number | null): Promise<void> {
+    async openNote(
+        path: string,
+        line: number | null,
+        beside: WorkspaceLeaf | null
+    ): Promise<void> {
         const file = this.app.vault.getAbstractFileByPath(path);
         if (!(file instanceof TFile)) {
             throw new Error(`Map pin refers to a missing note: ${path}`);
         }
 
-        const leaf = this.leafForNotes();
+        const leaf = this.leafForNotes(beside);
         // eState is how Obsidian's own link handling scrolls to a line.
         await leaf.openFile(
             file,
@@ -51,16 +66,28 @@ export class ObsidianIO implements ObsidianInterface {
     }
 
     /**
-     * Where a note opened from the map should go.
+     * Where a note opened from the map should go: immediately to the right of
+     * the map, never in whichever markdown pane happens to be open elsewhere.
      *
-     * Reuses an existing markdown tab so repeatedly clicking pins does not bury
-     * the workspace in tabs, and never returns the map's own leaf — opening a
-     * note into it would replace the map the user just clicked.
+     * The pane is created once and reused, so clicking pin after pin does not
+     * bury the workspace in tabs. Reuse is conditional on the leaf still being
+     * in the workspace, since the user may have closed it since.
      */
-    private leafForNotes(): WorkspaceLeaf {
-        const existing = this.app.workspace.getLeavesOfType("markdown");
-        return existing.length > 0
-            ? existing[0]
+    private leafForNotes(beside: WorkspaceLeaf | null): WorkspaceLeaf {
+        if (this.noteLeaf && this.isOpen(this.noteLeaf)) return this.noteLeaf;
+
+        this.noteLeaf = beside
+            ? this.app.workspace.createLeafBySplit(beside, "vertical", false)
             : this.app.workspace.getLeaf("tab");
+
+        return this.noteLeaf;
+    }
+
+    private isOpen(leaf: WorkspaceLeaf): boolean {
+        let open = false;
+        this.app.workspace.iterateAllLeaves((candidate) => {
+            if (candidate === leaf) open = true;
+        });
+        return open;
     }
 }

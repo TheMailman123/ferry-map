@@ -1,4 +1,5 @@
 import { ItemView, Notice, WorkspaceLeaf } from "obsidian";
+import { Coordinate } from "../core/coordinates";
 import { GeoTag } from "../core/geotags";
 import { buildMarkers } from "../core/markers";
 import type MapPlugin from "../main";
@@ -76,9 +77,14 @@ export class MapView extends ItemView {
         );
     }
 
+    /** Centre the map on a point. Used when a geotag link is followed. */
+    focusOn(coordinate: Coordinate): void {
+        this.surface?.focus(coordinate);
+    }
+
     private openNote(tag: GeoTag): void {
         this.plugin.obsidian
-            .openNote(tag.path, tag.line)
+            .openNote(tag.path, tag.line, this.leaf)
             .catch((error: Error) => {
                 // Surfaced rather than swallowed: a pin that silently does nothing
                 // when clicked is worse than one that says why.
