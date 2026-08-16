@@ -13,7 +13,10 @@ import {
     clampLatitude,
     normaliseLongitude,
 } from "../core/coordinates";
+import { MapMarker } from "../core/markers";
 import { BaseLayerId, SavedMapView, TileLayerSettings } from "./settings";
+
+export type { MapMarker };
 
 export interface MapSurfaceOptions {
     tiles: Record<BaseLayerId, TileLayerSettings>;
@@ -27,6 +30,8 @@ export class MapSurface {
     private readonly map: L.Map;
     private readonly layers: Record<BaseLayerId, L.TileLayer>;
     private readonly onViewChange: (view: SavedMapView) => void;
+    private readonly pins: L.LayerGroup;
+    private readonly markers = new Map<string, L.Marker>();
     private activeLayer: BaseLayerId;
 
     constructor(container: HTMLElement, options: MapSurfaceOptions) {
@@ -47,6 +52,8 @@ export class MapSurface {
             layers: [this.layers[this.activeLayer]],
         });
 
+        this.pins = L.layerGroup().addTo(this.map);
+
         L.control
             .layers({
                 [options.tiles.map.name]: this.layers.map,
@@ -66,6 +73,32 @@ export class MapSurface {
         // that has not been laid out yet the container is zero-sized, which
         // leaves the map blank until something forces a re-measure.
         window.requestAnimationFrame(() => this.map.invalidateSize());
+    }
+
+    /**
+     * Bring the displayed pins in line with `markers`.
+     *
+     * Pins are reconciled by id rather than cleared and rebuilt, so editing one
+     * note does not make every other pin on the map flicker.
+     */
+    setMarkers(markers: MapMarker[]): void {
+        const wanted = new Map(markers.map((marker) => [marker.id, marker]));
+
+        for (const [id, existing] of this.markers) {
+            if (!wanted.has(id)) {
+                existing.remove();
+                this.markers.delete(id);
+            }
+        }
+
+        for (const marker of markers) {
+            const existing = this.markers.get(marker.id);
+            if (existing) {
+                this.updateMarker(existing, marker);
+            } else {
+                this.markers.set(marker.id, this.createMarker(marker));
+            }
+        }
     }
 
     /** Re-measure after the containing leaf changes size. */
@@ -100,6 +133,79 @@ export class MapSurface {
     private reportView(): void {
         this.onViewChange(this.view());
     }
+
+    private createMarker(marker: MapMarker): L.Marker {
+        const created = L.marker(
+            [marker.coordinate.lat, marker.coordinate.lon],
+            {
+                icon: pinIcon(),
+                title: marker.label,
+                keyboard: true,
+                alt: marker.label,
+            }
+        );
+
+        created.bindTooltip(tooltipContent(marker), { direction: "top" });
+        created.on("click", () => marker.onSelect());
+        created.addTo(this.pins);
+
+        return created;
+    }
+
+    private updateMarker(existing: L.Marker, marker: MapMarker): void {
+        const current = existing.getLatLng();
+        if (
+            current.lat !== marker.coordinate.lat ||
+            current.lng !== marker.coordinate.lon
+        ) {
+            existing.setLatLng([marker.coordinate.lat, marker.coordinate.lon]);
+        }
+
+        existing.setTooltipContent(tooltipContent(marker));
+
+        // The click handler closes over the previous marker's onSelect, which
+        // may now point at a stale line, so it is always replaced.
+        existing.off("click");
+        existing.on("click", () => marker.onSelect());
+    }
+}
+
+/**
+ * A pin.
+ *
+ * A `divIcon` rather than Leaflet's default marker: the default resolves its
+ * images from a runtime script path that does not exist inside Obsidian, and a
+ * div can be recoloured from CSS, which is what the colour groups need.
+ */
+function pinIcon(): L.DivIcon {
+    return L.divIcon({
+        className: "obsidian-map-marker",
+        iconSize: [18, 18],
+        iconAnchor: [9, 9],
+        tooltipAnchor: [0, -9],
+    });
+}
+
+/**
+ * Tooltip contents, built as DOM rather than an HTML string.
+ *
+ * Labels come from note names and link aliases — arbitrary user text — so they
+ * are set as `textContent` and never parsed as markup.
+ */
+function tooltipContent(marker: MapMarker): HTMLElement {
+    const el = document.createElement("div");
+    el.addClass("obsidian-map-tooltip");
+
+    const label = el.createDiv({ cls: "obsidian-map-tooltip-label" });
+    label.setText(marker.label);
+
+    // Redundant when the pin is labelled by its note; useful when it is not.
+    if (marker.label !== marker.noteName) {
+        const note = el.createDiv({ cls: "obsidian-map-tooltip-note" });
+        note.setText(marker.noteName);
+    }
+
+    return el;
 }
 
 function tileLayer(settings: TileLayerSettings): L.TileLayer {

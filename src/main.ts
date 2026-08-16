@@ -1,16 +1,23 @@
 import { Plugin } from "obsidian";
+import { ObsidianIO, ObsidianInterface } from "./obsidian/adapter";
+import { GeoStore } from "./obsidian/store";
 import { MAP_VIEW_TYPE, MapView } from "./ui/view";
 import { DEFAULT_SETTINGS, MapSettingTab, MapSettings } from "./ui/settings";
 
 /**
- * Plugin entry point: owns settings, registers the map view, and provides the
- * commands and ribbon entry that open it.
+ * Plugin entry point: owns settings and the geotag store, registers the map
+ * view, and provides the commands and ribbon entry that open it.
  */
 export default class MapPlugin extends Plugin {
     settings: MapSettings = DEFAULT_SETTINGS;
+    obsidian!: ObsidianInterface;
+    store!: GeoStore;
 
     async onload(): Promise<void> {
         await this.loadSettings();
+
+        this.obsidian = new ObsidianIO(this.app);
+        this.store = new GeoStore(this.obsidian);
 
         this.registerView(MAP_VIEW_TYPE, (leaf) => new MapView(leaf, this));
 
@@ -23,6 +30,10 @@ export default class MapPlugin extends Plugin {
         });
 
         this.addSettingTab(new MapSettingTab(this.app, this));
+
+        // The metadata cache is still filling during onload, so notes scanned
+        // now come back with no links at all.
+        this.app.workspace.onLayoutReady(() => this.store.scanVault());
     }
 
     /**

@@ -36,3 +36,50 @@
 .obsidian-map-view .leaflet-control-attribution a {
     color: var(--text-accent);
 }
+
+/* Leaflet gives div icons a white box by default. */
+.obsidian-map-marker {
+    background: transparent;
+    border: none;
+}
+
+/* The pin itself. --obsidian-map-marker-colour is set per marker once colour
+   groups exist; until then every pin takes the accent colour. */
+.obsidian-map-marker::after {
+    content: "";
+    display: block;
+    width: 100%;
+    height: 100%;
+    border-radius: 50%;
+    box-sizing: border-box;
+    background-color: var(--obsidian-map-marker-colour, var(--interactive-accent));
+    border: 2px solid var(--background-primary);
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.5);
+}
+
+.obsidian-map-marker:hover::after,
+.obsidian-map-marker:focus-visible::after {
+    border-color: var(--text-normal);
+}
+
+.obsidian-map-view .leaflet-tooltip {
+    background-color: var(--background-primary);
+    color: var(--text-normal);
+    border-color: var(--background-modifier-border);
+    box-shadow: var(--shadow-s);
+}
+
+/* Leaflet draws the tooltip's pointer as a bordered triangle in its own
+   colours; recolour it or it floats detached from the themed body. */
+.obsidian-map-view .leaflet-tooltip-top::before {
+    border-top-color: var(--background-primary);
+}
+
+.obsidian-map-tooltip-label {
+    font-weight: var(--font-semibold);
+}
+
+.obsidian-map-tooltip-note {
+    color: var(--text-muted);
+    font-size: var(--font-smaller);
+}

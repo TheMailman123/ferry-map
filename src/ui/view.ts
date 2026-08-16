@@ -1,4 +1,6 @@
-import { ItemView, WorkspaceLeaf } from "obsidian";
+import { ItemView, Notice, WorkspaceLeaf } from "obsidian";
+import { GeoTag } from "../core/geotags";
+import { buildMarkers } from "../core/markers";
 import type MapPlugin from "../main";
 import { MapSurface } from "./map";
 import { SavedMapView } from "./settings";
@@ -12,6 +14,7 @@ const VIEW_SAVE_DELAY_MS = 500;
 export class MapView extends ItemView {
     private readonly plugin: MapPlugin;
     private surface: MapSurface | null = null;
+    private unsubscribe: (() => void) | null = null;
     private saveTimer: number | null = null;
 
     constructor(leaf: WorkspaceLeaf, plugin: MapPlugin) {
@@ -46,6 +49,12 @@ export class MapView extends ItemView {
             initial: this.plugin.settings.view,
             onViewChange: (view) => this.rememberView(view),
         });
+
+        // Subscribing before the first draw matters: the view can be restored
+        // at startup before the vault scan has run, and would otherwise sit
+        // empty until something else happened to change.
+        this.unsubscribe = this.plugin.store.onChange(() => this.drawMarkers());
+        this.drawMarkers();
     }
 
     onResize(): void {
@@ -54,9 +63,28 @@ export class MapView extends ItemView {
 
     async onClose(): Promise<void> {
         this.clearSaveTimer();
+        this.unsubscribe?.();
+        this.unsubscribe = null;
         this.surface?.destroy();
         this.surface = null;
         this.containerEl.children[1].empty();
+    }
+
+    private drawMarkers(): void {
+        this.surface?.setMarkers(
+            buildMarkers(this.plugin.store.tags(), (tag) => this.openNote(tag))
+        );
+    }
+
+    private openNote(tag: GeoTag): void {
+        this.plugin.obsidian
+            .openNote(tag.path, tag.line)
+            .catch((error: Error) => {
+                // Surfaced rather than swallowed: a pin that silently does nothing
+                // when clicked is worse than one that says why.
+                new Notice(error.message);
+                console.error(error);
+            });
     }
 
     /**
