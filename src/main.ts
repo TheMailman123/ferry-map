@@ -3,15 +3,19 @@ import { Coordinate, parseCoordinate } from "./core/coordinates";
 import { linkTarget } from "./core/links";
 import { ObsidianIO, ObsidianInterface } from "./obsidian/adapter";
 import { GeoStore } from "./obsidian/store";
-import { MAP_VIEW_TYPE, MapView } from "./ui/view";
-import { DEFAULT_SETTINGS, MapSettingTab, MapSettings } from "./ui/settings";
+import { FERRY_MAP_VIEW_TYPE, FerryMapView } from "./ui/view";
+import {
+    DEFAULT_SETTINGS,
+    FerryMapSettingTab,
+    FerryMapSettings,
+} from "./ui/settings";
 
 /**
  * Plugin entry point: owns settings and the geotag store, registers the map
  * view, and provides the commands and ribbon entry that open it.
  */
-export default class MapPlugin extends Plugin {
-    settings: MapSettings = DEFAULT_SETTINGS;
+export default class FerryMapPlugin extends Plugin {
+    settings: FerryMapSettings = DEFAULT_SETTINGS;
     obsidian!: ObsidianInterface;
     store!: GeoStore;
 
@@ -21,17 +25,22 @@ export default class MapPlugin extends Plugin {
         this.obsidian = new ObsidianIO(this.app);
         this.store = new GeoStore(this.obsidian);
 
-        this.registerView(MAP_VIEW_TYPE, (leaf) => new MapView(leaf, this));
+        this.registerView(
+            FERRY_MAP_VIEW_TYPE,
+            (leaf) => new FerryMapView(leaf, this)
+        );
 
-        this.addRibbonIcon("globe", "Open map", () => this.activateView());
+        this.addRibbonIcon("globe", "Open Ferry Map", () =>
+            this.activateView()
+        );
 
         this.addCommand({
-            id: "open-map-view",
-            name: "Open map view",
+            id: "open-ferry-map-view",
+            name: "Open Ferry Map",
             callback: () => this.activateView(),
         });
 
-        this.addSettingTab(new MapSettingTab(this.app, this));
+        this.addSettingTab(new FerryMapSettingTab(this.app, this));
 
         // Capture phase, so this runs before Obsidian's own link handling and
         // can stop a geotag from being treated as a missing note.
@@ -51,12 +60,16 @@ export default class MapPlugin extends Plugin {
      * Reveals the map view, reusing an existing leaf if one is already open so
      * repeated invocations do not stack duplicate tabs.
      */
-    async activateView(): Promise<MapView | null> {
-        const existing = this.app.workspace.getLeavesOfType(MAP_VIEW_TYPE);
+    async activateView(): Promise<FerryMapView | null> {
+        const existing =
+            this.app.workspace.getLeavesOfType(FERRY_MAP_VIEW_TYPE);
 
         if (existing.length === 0) {
             const leaf = this.app.workspace.getLeaf("tab");
-            await leaf.setViewState({ type: MAP_VIEW_TYPE, active: true });
+            await leaf.setViewState({
+                type: FERRY_MAP_VIEW_TYPE,
+                active: true,
+            });
         } else {
             await this.app.workspace.revealLeaf(existing[0]);
         }
@@ -104,9 +117,9 @@ export default class MapPlugin extends Plugin {
         view?.focusOn(coordinate);
     }
 
-    private mapView(): MapView | null {
-        const leaf = this.app.workspace.getLeavesOfType(MAP_VIEW_TYPE)[0];
-        return leaf?.view instanceof MapView ? leaf.view : null;
+    private mapView(): FerryMapView | null {
+        const leaf = this.app.workspace.getLeavesOfType(FERRY_MAP_VIEW_TYPE)[0];
+        return leaf?.view instanceof FerryMapView ? leaf.view : null;
     }
 }
 

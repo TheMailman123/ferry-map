@@ -1,5 +1,5 @@
 {
-    "name": "obsidian-map",
+    "name": "ferry-map",
     "version": "0.0.1",
     "description": "A navigable world map view over geotagged notes in your vault.",
     "main": "main.js",

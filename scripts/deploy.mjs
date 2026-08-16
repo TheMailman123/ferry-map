@@ -4,7 +4,7 @@
  * The repo knows nothing about any vault; the target is supplied at runtime so
  * no personal path is ever committed:
  *
- *   MAP_VAULT=/path/to/vault npm run deploy
+ *   FERRY_MAP_VAULT=/path/to/vault npm run deploy
  *
  * or persisted in .deploy.local.json (gitignored):
  *
@@ -29,13 +29,13 @@ const PLUGIN_ID = JSON.parse(readFileSync("manifest.json", "utf8")).id;
 const LOCAL_CONFIG = ".deploy.local.json";
 
 /**
- * Deploy targets in precedence order: MAP_VAULT (one-off), then `vaults` or
+ * Deploy targets in precedence order: FERRY_MAP_VAULT (one-off), then `vaults` or
  * `vault` from the local config.
  *
  * @returns {string[]} one or more unresolved vault paths
  */
 function resolveVaults() {
-    if (process.env.MAP_VAULT) return [process.env.MAP_VAULT];
+    if (process.env.FERRY_MAP_VAULT) return [process.env.FERRY_MAP_VAULT];
 
     if (existsSync(LOCAL_CONFIG)) {
         const { vault, vaults } = JSON.parse(readFileSync(LOCAL_CONFIG, "utf8"));
@@ -59,7 +59,7 @@ function resolveVaults() {
     }
 
     throw new Error(
-        `No deploy target. Set MAP_VAULT=/path/to/vault, or create ${LOCAL_CONFIG} with ` +
+        `No deploy target. Set FERRY_MAP_VAULT=/path/to/vault, or create ${LOCAL_CONFIG} with ` +
             `{ "vault": "/path/to/vault" } or { "vaults": ["/path/one", "/path/two"] }.`
     );
 }

@@ -1,12 +1,12 @@
 /* The leaf's content area. Obsidian pads this by default; the map fills it. */
-.obsidian-map-view {
+.ferry-map-view {
     padding: 0;
     display: flex;
     flex-direction: column;
     overflow: hidden;
 }
 
-.obsidian-map-container {
+.ferry-map-container {
     flex: 1 1 auto;
     width: 100%;
     /* Without this a flex child refuses to shrink below its content height,
@@ -16,47 +16,47 @@
 
 /* Leaflet's controls are hard-coded light. Repaint them from the active theme
    so the map does not glare in a dark vault. */
-.obsidian-map-view .leaflet-control-layers,
-.obsidian-map-view .leaflet-bar a,
-.obsidian-map-view .leaflet-control-attribution {
+.ferry-map-view .leaflet-control-layers,
+.ferry-map-view .leaflet-bar a,
+.ferry-map-view .leaflet-control-attribution {
     background-color: var(--background-primary);
     color: var(--text-normal);
 }
 
-.obsidian-map-view .leaflet-bar a,
-.obsidian-map-view .leaflet-control-layers {
+.ferry-map-view .leaflet-bar a,
+.ferry-map-view .leaflet-control-layers {
     border-color: var(--background-modifier-border);
 }
 
-.obsidian-map-view .leaflet-bar a:hover {
+.ferry-map-view .leaflet-bar a:hover {
     background-color: var(--background-modifier-hover);
     color: var(--text-normal);
 }
 
-.obsidian-map-view .leaflet-control-attribution a {
+.ferry-map-view .leaflet-control-attribution a {
     color: var(--text-accent);
 }
 
 /* Leaflet gives div icons a white box by default. */
-.obsidian-map-marker {
+.ferry-map-marker {
     background: transparent;
     border: none;
 }
 
-/* The pin itself. --obsidian-map-marker-colour is set per marker once colour
+/* The pin itself. --ferry-map-marker-colour is set per marker once colour
    groups exist; until then every pin takes the accent colour. */
-.obsidian-map-pin {
+.ferry-map-pin {
     width: 100%;
     height: 100%;
     border-radius: 50%;
     box-sizing: border-box;
-    background-color: var(--obsidian-map-marker-colour, var(--interactive-accent));
+    background-color: var(--ferry-map-marker-colour, var(--interactive-accent));
     border: 2px solid var(--background-primary);
     box-shadow: 0 1px 3px rgba(0, 0, 0, 0.5);
 }
 
 /* A pin standing for several geotags, showing how many are beneath it. */
-.obsidian-map-pin-cluster {
+.ferry-map-pin-cluster {
     display: flex;
     align-items: center;
     justify-content: center;
@@ -66,12 +66,12 @@
     line-height: 1;
 }
 
-.obsidian-map-marker:hover .obsidian-map-pin,
-.obsidian-map-marker:focus-visible .obsidian-map-pin {
+.ferry-map-marker:hover .ferry-map-pin,
+.ferry-map-marker:focus-visible .ferry-map-pin {
     border-color: var(--text-normal);
 }
 
-.obsidian-map-view .leaflet-tooltip {
+.ferry-map-view .leaflet-tooltip {
     background-color: var(--background-primary);
     color: var(--text-normal);
     border-color: var(--background-modifier-border);
@@ -80,15 +80,15 @@
 
 /* Leaflet draws the tooltip's pointer as a bordered triangle in its own
    colours; recolour it or it floats detached from the themed body. */
-.obsidian-map-view .leaflet-tooltip-top::before {
+.ferry-map-view .leaflet-tooltip-top::before {
     border-top-color: var(--background-primary);
 }
 
-.obsidian-map-tooltip-label {
+.ferry-map-tooltip-label {
     font-weight: var(--font-semibold);
 }
 
-.obsidian-map-tooltip-note {
+.ferry-map-tooltip-note {
     color: var(--text-muted);
     font-size: var(--font-smaller);
 }

@@ -40,12 +40,19 @@ export interface MapSurfaceOptions {
     initial: SavedMapView;
     /** Called when the user pans, zooms, or switches base layer. */
     onViewChange: (view: SavedMapView) => void;
+    /**
+     * Called when a pin is clicked. Handled outside this module because what
+     * should happen — open a note, or offer a choice of them — is an Obsidian
+     * question rather than a map one.
+     */
+    onSelect: (cluster: Cluster, event: MouseEvent) => void;
 }
 
 export class MapSurface {
     private readonly map: L.Map;
     private readonly layers: Record<BaseLayerId, L.TileLayer>;
     private readonly onViewChange: (view: SavedMapView) => void;
+    private readonly onSelect: (cluster: Cluster, event: MouseEvent) => void;
     private readonly pins: L.LayerGroup;
     /** Drawn clusters, by cluster id. */
     private readonly markers = new Map<string, L.Marker>();
@@ -55,6 +62,7 @@ export class MapSurface {
 
     constructor(container: HTMLElement, options: MapSurfaceOptions) {
         this.onViewChange = options.onViewChange;
+        this.onSelect = options.onSelect;
         this.activeLayer = options.initial.layer;
 
         this.layers = {
@@ -148,6 +156,22 @@ export class MapSurface {
         this.map.invalidateSize();
     }
 
+    /** Whether there is any zoom left to gain. */
+    canZoomIn(): boolean {
+        return this.map.getZoom() < this.map.getMaxZoom();
+    }
+
+    /** Zoom in on a point, to help separate pins drawn on top of each other. */
+    zoomIn(coordinate: Coordinate): void {
+        this.map.setView(
+            [coordinate.lat, coordinate.lon],
+            Math.min(
+                this.map.getZoom() + CLUSTER_ZOOM_STEP,
+                this.map.getMaxZoom()
+            )
+        );
+    }
+
     /**
      * Centre the map on a point, zooming in if the map is further out than
      * {@link FOCUS_ZOOM}. An existing closer zoom is left alone, so following a
@@ -205,7 +229,9 @@ export class MapSurface {
         );
 
         created.bindTooltip(tooltipContent(cluster), { direction: "top" });
-        created.on("click", () => this.selectCluster(cluster));
+        created.on("click", (event) =>
+            this.onSelect(cluster, event.originalEvent)
+        );
         created.addTo(this.pins);
 
         return created;
@@ -228,22 +254,8 @@ export class MapSurface {
         // The click handler closes over the previous cluster, whose members may
         // now point at stale lines, so it is always replaced.
         existing.off("click");
-        existing.on("click", () => this.selectCluster(cluster));
-    }
-
-    /**
-     * A single pin opens its note; a cluster zooms in instead, since there is no
-     * one note it could sensibly open.
-     */
-    private selectCluster(cluster: Cluster): void {
-        if (cluster.members.length === 1) {
-            cluster.members[0].onSelect();
-            return;
-        }
-
-        this.map.setView(
-            [cluster.coordinate.lat, cluster.coordinate.lon],
-            this.map.getZoom() + CLUSTER_ZOOM_STEP
+        existing.on("click", (event) =>
+            this.onSelect(cluster, event.originalEvent)
         );
     }
 }
@@ -260,14 +272,14 @@ function pinIcon(cluster: Cluster): L.DivIcon {
     const size = count > 1 ? 26 : 18;
 
     const el = document.createElement("div");
-    el.addClass("obsidian-map-pin");
+    el.addClass("ferry-map-pin");
     if (count > 1) {
-        el.addClass("obsidian-map-pin-cluster");
+        el.addClass("ferry-map-pin-cluster");
         el.setText(String(count));
     }
 
     return L.divIcon({
-        className: "obsidian-map-marker",
+        className: "ferry-map-marker",
         html: el,
         iconSize: [size, size],
         iconAnchor: [size / 2, size / 2],
@@ -290,18 +302,16 @@ function clusterLabel(cluster: Cluster): string {
  */
 function tooltipContent(cluster: Cluster): HTMLElement {
     const el = document.createElement("div");
-    el.addClass("obsidian-map-tooltip");
+    el.addClass("ferry-map-tooltip");
 
     if (cluster.members.length === 1) {
         const [marker] = cluster.members;
 
-        el.createDiv({ cls: "obsidian-map-tooltip-label" }).setText(
-            marker.label
-        );
+        el.createDiv({ cls: "ferry-map-tooltip-label" }).setText(marker.label);
 
         // Redundant when the pin is labelled by its note; useful when it is not.
         if (marker.label !== marker.noteName) {
-            el.createDiv({ cls: "obsidian-map-tooltip-note" }).setText(
+            el.createDiv({ cls: "ferry-map-tooltip-note" }).setText(
                 marker.noteName
             );
         }
@@ -309,11 +319,11 @@ function tooltipContent(cluster: Cluster): HTMLElement {
         return el;
     }
 
-    el.createDiv({ cls: "obsidian-map-tooltip-label" }).setText(
+    el.createDiv({ cls: "ferry-map-tooltip-label" }).setText(
         `${cluster.members.length} geotags here`
     );
 
-    const list = el.createDiv({ cls: "obsidian-map-tooltip-note" });
+    const list = el.createDiv({ cls: "ferry-map-tooltip-note" });
     for (const marker of cluster.members.slice(0, TOOLTIP_MEMBER_LIMIT)) {
         list.createDiv().setText(marker.label);
     }

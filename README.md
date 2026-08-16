@@ -1,4 +1,4 @@
-# Map
+# Ferry Map
 
 An Obsidian plugin providing a navigable world map view over geotagged notes in
 your vault.
@@ -20,7 +20,7 @@ npm run lint           # prettier --check
 Point the deploy script at a vault, either once:
 
 ```sh
-MAP_VAULT=/path/to/vault npm run build:deploy
+FERRY_MAP_VAULT=/path/to/vault npm run build:deploy
 ```
 
 or persistently, in a gitignored `.deploy.local.json`:

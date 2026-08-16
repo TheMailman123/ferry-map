@@ -1,4 +1,4 @@
-# Vision & Scope
+# Vision & Scope — Ferry Map
 
 ## Vision
 
@@ -109,8 +109,9 @@ changing the architecture, since only the coordinate parser would move.
   that note, at the geotag's own line where the geotag is in the body.
 - **Overlapping pins** — where the zoom is too coarse to tell several geotags
   apart, they are drawn as one pin carrying a count, so the map never quietly
-  under-reports what is there. Clicking it zooms in; hovering lists what is
-  beneath.
+  under-reports what is there. Hovering lists what is beneath; clicking offers
+  a choice of them, since geotags at identical coordinates never separate at
+  any zoom and would otherwise be unreachable.
 - **Following a geotag link** — clicking a geotag in a note opens the map
   centred on that point, rather than Obsidian's offer to create a note.
 - **Live** — pins update as notes are created, edited, renamed and deleted.

@@ -1,5 +1,5 @@
 import { App, PluginSettingTab, Setting } from "obsidian";
-import type MapPlugin from "../main";
+import type FerryMapPlugin from "../main";
 
 /** Which of the two base layers is showing. */
 export type BaseLayerId = "map" | "satellite";
@@ -23,14 +23,14 @@ export interface SavedMapView {
     layer: BaseLayerId;
 }
 
-export interface MapSettings {
+export interface FerryMapSettings {
     /** Schema version, so stored settings can be migrated across releases. */
     version: number;
     tiles: Record<BaseLayerId, TileLayerSettings>;
     view: SavedMapView;
 }
 
-export const DEFAULT_SETTINGS: MapSettings = {
+export const DEFAULT_SETTINGS: FerryMapSettings = {
     version: 1,
     tiles: {
         map: {
@@ -52,10 +52,10 @@ export const DEFAULT_SETTINGS: MapSettings = {
     view: { lat: 20, lon: 0, zoom: 2, layer: "map" },
 };
 
-export class MapSettingTab extends PluginSettingTab {
-    private plugin: MapPlugin;
+export class FerryMapSettingTab extends PluginSettingTab {
+    private plugin: FerryMapPlugin;
 
-    constructor(app: App, plugin: MapPlugin) {
+    constructor(app: App, plugin: FerryMapPlugin) {
         super(app, plugin);
         this.plugin = plugin;
     }
