@@ -254,6 +254,7 @@ M1 unit tests assert on, so a divergence between the two is a real bug.
   rather than discovered in M3.
 - **Graph view parity** is a moving target defined by an undocumented UI. M6
   fixes the observable behaviour of a documented subset rather than chasing it.
-- **Marker volume**: Leaflet is comfortable to a few thousand markers. If a
-  vault exceeds that, the fix is `preferCanvas` or clustering, both additive to
-  `ui/map.ts` and neither in v1 scope.
+- **Marker volume**: Leaflet is comfortable to a few thousand markers, and
+  clustering (`core/clustering.ts`) reduces what is drawn at low zoom. If a
+  vault still exceeds that, the remaining lever is `preferCanvas`, additive to
+  `ui/map.ts`.

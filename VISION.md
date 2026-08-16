@@ -74,13 +74,18 @@ parser. A note may carry any number of geotags, anywhere.
 ### Known cost of this shape
 
 These links point at notes that do not exist, so Obsidian treats them as
-**unresolved links**. Consequently: they render in the dim "unresolved" style,
-clicking one offers to create a note with that name, and they appear as
-unresolved nodes in graph view unless that display option is turned off. This
-is accepted as the price of a syntax that needs no parser and no plugin-specific
-markup. It is contained: if it becomes intolerable, a distinguishing prefix
-(`[[geo:58.6276, -4.9997]]`) can be added later without changing the
-architecture, since only the coordinate parser would move.
+**unresolved links**: they render in the dim "unresolved" style and appear as
+unresolved nodes in graph view unless that display option is turned off.
+
+The sharpest edge — clicking a geotag offering to *create* a note called
+`58.6276, -4.9997` — is removed by the plugin, which intercepts clicks on
+geotag links and opens the map at that point instead. What was the main cost of
+this syntax is therefore also one of its better features.
+
+The remainder is accepted as the price of a syntax that needs no parser and no
+plugin-specific markup, and it is contained: if it becomes intolerable, a
+distinguishing prefix (`[[geo:58.6276, -4.9997]]`) can be added later without
+changing the architecture, since only the coordinate parser would move.
 
 ### Parsing rules
 
@@ -102,6 +107,12 @@ architecture, since only the coordinate parser would move.
 - **Markers** — every geotag in the vault becomes a pin, labelled with its
   origin note's name unless the geotag supplies an alias. Selecting a pin opens
   that note, at the geotag's own line where the geotag is in the body.
+- **Overlapping pins** — where the zoom is too coarse to tell several geotags
+  apart, they are drawn as one pin carrying a count, so the map never quietly
+  under-reports what is there. Clicking it zooms in; hovering lists what is
+  beneath.
+- **Following a geotag link** — clicking a geotag in a note opens the map
+  centred on that point, rather than Obsidian's offer to create a note.
 - **Live** — pins update as notes are created, edited, renamed and deleted.
 - **Copy coordinates** — right-clicking the map offers "Copy geotag", putting
   `[[lat, lon]]` for that point on the clipboard, ready to paste into a note.
@@ -122,7 +133,8 @@ architecture, since only the coordinate parser would move.
   v1 work.
 - **Non-decimal coordinate formats** — degrees/minutes/seconds, MGRS, what3words,
   place-name geocoding. The parser is written so a second format is additive.
-- **Routes, shapes, heatmaps, clustering.** Points only.
+- **Routes, shapes and heatmaps.** Points only. (Grouping overlapping points
+  under a count is in scope; drawing anything that is not a point is not.)
 - **Content-text search in filter queries** (see below).
 
 ### Deliberate deviation from "identical to graph view"
