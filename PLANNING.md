@@ -69,18 +69,21 @@ interface GeoTagProblem {
 
 ---
 
-## M0 — Dependency
+## M0 — Dependency *(done)*
 
-Add `leaflet` and `@types/leaflet`. Confirm it bundles into `main.js` and that
-Leaflet's CSS (and the marker icon PNGs it references) get inlined by the
-`dataurl` loaders already configured in `esbuild.config.mjs`, so the plugin
-ships as `main.js` + `styles.css` with no loose assets.
+`leaflet` + `@types/leaflet` added. A throwaway bundle confirmed:
 
-Leaflet's default icon path resolution assumes files on disk and breaks under a
-bundler; the map layer sets `L.Icon.Default` options explicitly, or uses a
-`divIcon`, to avoid it.
+- 147 KB JS / 15 KB CSS minified, and the three PNGs Leaflet's stylesheet
+  references are inlined as `data:` URIs by the loaders already configured in
+  `esbuild.config.mjs`. The plugin ships as `main.js` + `styles.css` with no
+  loose assets.
+- `_detectIconPath` / `imagePath` **are** in the bundle, confirming Leaflet
+  still resolves default marker icons from a runtime script path that does not
+  exist inside Obsidian.
 
-**Done when:** a throwaway `L.map()` call renders tiles in a test vault.
+Decision: markers use `L.divIcon` throughout, never `L.Icon.Default`. This
+sidesteps the icon path problem entirely (no image assets at all) and is what
+M6 needs anyway, since a `divIcon` can be recoloured from CSS.
 
 ## M1 — Coordinate core (no UI)
 
@@ -189,9 +192,8 @@ AND between terms, `OR`. A bare word matches path or basename. Content matching
 is deliberately absent (see VISION.md) and slots in as one more predicate.
 
 `core/groups.ts` — given the ordered group list and a `NoteDoc`, return the
-colour. **Verify the precedence against the real graph view before fixing it**
-(first match vs last match wins); the behaviour is not documented and guessing
-would produce a subtly wrong clone of a UI users already know.
+colour of the **first** group in list order whose query matches; groups lower
+in the list do not override it.
 
 `ui/controls.ts` — a collapsible panel over the map mirroring graph view's:
 a filter query input, and an add/remove list of groups each with a query input
