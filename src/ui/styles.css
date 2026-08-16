@@ -1,10 +1,38 @@
+/* The leaf's content area. Obsidian pads this by default; the map fills it. */
 .obsidian-map-view {
     padding: 0;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
 }
 
-/* The map fills the tab; the surface itself needs an explicit height because
-   the leaf content area does not impose one on its children. */
 .obsidian-map-container {
+    flex: 1 1 auto;
     width: 100%;
-    height: 100%;
+    /* Without this a flex child refuses to shrink below its content height,
+       and Leaflet ends up measuring a container taller than the leaf. */
+    min-height: 0;
+}
+
+/* Leaflet's controls are hard-coded light. Repaint them from the active theme
+   so the map does not glare in a dark vault. */
+.obsidian-map-view .leaflet-control-layers,
+.obsidian-map-view .leaflet-bar a,
+.obsidian-map-view .leaflet-control-attribution {
+    background-color: var(--background-primary);
+    color: var(--text-normal);
+}
+
+.obsidian-map-view .leaflet-bar a,
+.obsidian-map-view .leaflet-control-layers {
+    border-color: var(--background-modifier-border);
+}
+
+.obsidian-map-view .leaflet-bar a:hover {
+    background-color: var(--background-modifier-hover);
+    color: var(--text-normal);
+}
+
+.obsidian-map-view .leaflet-control-attribution a {
+    color: var(--text-accent);
 }

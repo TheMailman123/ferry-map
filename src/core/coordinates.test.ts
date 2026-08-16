@@ -1,7 +1,9 @@
 import {
     Coordinate,
+    clampLatitude,
     formatCoordinate,
     formatGeotag,
+    normaliseLongitude,
     parseCoordinate,
 } from "./coordinates";
 
@@ -139,6 +141,49 @@ describe("formatCoordinate", () => {
         expect(formatCoordinate({ lat: -0.00001, lon: -0.00002 })).toBe(
             "0.0000, 0.0000"
         );
+    });
+});
+
+describe("normaliseLongitude", () => {
+    it("leaves in-range longitudes untouched", () => {
+        expect(normaliseLongitude(-4.9997)).toBe(-4.9997);
+        expect(normaliseLongitude(0)).toBe(0);
+    });
+
+    it("preserves an exact antimeridian rather than flipping its sign", () => {
+        expect(normaliseLongitude(180)).toBe(180);
+        expect(normaliseLongitude(-180)).toBe(-180);
+    });
+
+    it("wraps a longitude panned past the antimeridian", () => {
+        expect(normaliseLongitude(185.2)).toBeCloseTo(-174.8, 10);
+        expect(normaliseLongitude(-185.2)).toBeCloseTo(174.8, 10);
+    });
+
+    it("wraps after several times round the world", () => {
+        expect(normaliseLongitude(360 + 20)).toBeCloseTo(20, 10);
+        expect(normaliseLongitude(-720 - 20)).toBeCloseTo(-20, 10);
+    });
+
+    it("always produces a longitude the parser accepts", () => {
+        for (const lon of [185.2, -185.2, 400, -400, 1000]) {
+            const target = formatCoordinate({
+                lat: 0,
+                lon: normaliseLongitude(lon),
+            });
+            expect(parseCoordinate(target).kind).toBe("coordinate");
+        }
+    });
+});
+
+describe("clampLatitude", () => {
+    it("leaves in-range latitudes untouched", () => {
+        expect(clampLatitude(58.6276)).toBe(58.6276);
+    });
+
+    it("clamps beyond the poles", () => {
+        expect(clampLatitude(95)).toBe(90);
+        expect(clampLatitude(-95)).toBe(-90);
     });
 });
 

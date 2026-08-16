@@ -119,6 +119,27 @@ export function formatGeotag(
     return `[[${formatCoordinate(coordinate, places)}]]`;
 }
 
+/**
+ * Wrap a longitude into -180..180.
+ *
+ * Leaflet reports longitudes outside that range once the map has been panned
+ * across the antimeridian — pan far enough east and a point reads as 185.2
+ * rather than -174.8. Both describe the same place, but only one is a
+ * coordinate this plugin will read back, so anything sourced from the map is
+ * normalised before it is stored or written.
+ */
+export function normaliseLongitude(lon: number): number {
+    // Left alone when already in range, so an exact 180 is not flipped to -180.
+    if (lon >= -MAX_LONGITUDE && lon <= MAX_LONGITUDE) return lon;
+
+    return ((((lon + MAX_LONGITUDE) % 360) + 360) % 360) - MAX_LONGITUDE;
+}
+
+/** Clamp a latitude to the poles. Counterpart to {@link normaliseLongitude}. */
+export function clampLatitude(lat: number): number {
+    return Math.min(MAX_LATITUDE, Math.max(-MAX_LATITUDE, lat));
+}
+
 function malformed(reason: string): CoordinateParse {
     return { kind: "malformed", reason };
 }

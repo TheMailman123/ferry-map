@@ -1,15 +1,18 @@
 import { ItemView, WorkspaceLeaf } from "obsidian";
 import type MapPlugin from "../main";
+import { MapSurface } from "./map";
+import { SavedMapView } from "./settings";
 import "./styles.css";
 
 export const MAP_VIEW_TYPE = "obsidian-map-view";
 
-/**
- * The map tab. Currently a placeholder shell; the map surface and marker layer
- * are added on top of this container.
- */
+/** How long panning must settle before the view position is written to disk. */
+const VIEW_SAVE_DELAY_MS = 500;
+
 export class MapView extends ItemView {
-    private plugin: MapPlugin;
+    private readonly plugin: MapPlugin;
+    private surface: MapSurface | null = null;
+    private saveTimer: number | null = null;
 
     constructor(leaf: WorkspaceLeaf, plugin: MapPlugin) {
         super(leaf);
@@ -33,10 +36,50 @@ export class MapView extends ItemView {
         const container = this.containerEl.children[1] as HTMLElement;
         container.empty();
         container.addClass("obsidian-map-view");
-        container.createDiv({ cls: "obsidian-map-container" });
+
+        const surfaceEl = container.createDiv({
+            cls: "obsidian-map-container",
+        });
+
+        this.surface = new MapSurface(surfaceEl, {
+            tiles: this.plugin.settings.tiles,
+            initial: this.plugin.settings.view,
+            onViewChange: (view) => this.rememberView(view),
+        });
+    }
+
+    onResize(): void {
+        this.surface?.resize();
     }
 
     async onClose(): Promise<void> {
+        this.clearSaveTimer();
+        this.surface?.destroy();
+        this.surface = null;
         this.containerEl.children[1].empty();
+    }
+
+    /**
+     * Persist the map position, debounced.
+     *
+     * Leaflet fires `moveend` once per gesture, but a zoom is a move too, so a
+     * quick pan-and-zoom would otherwise write data.json several times in a
+     * second for something the user is still in the middle of doing.
+     */
+    private rememberView(view: SavedMapView): void {
+        this.plugin.settings.view = view;
+
+        this.clearSaveTimer();
+        this.saveTimer = window.setTimeout(() => {
+            this.saveTimer = null;
+            void this.plugin.saveSettings();
+        }, VIEW_SAVE_DELAY_MS);
+    }
+
+    private clearSaveTimer(): void {
+        if (this.saveTimer !== null) {
+            window.clearTimeout(this.saveTimer);
+            this.saveTimer = null;
+        }
     }
 }
