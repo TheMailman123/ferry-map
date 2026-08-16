@@ -12,16 +12,8 @@ export interface ObsidianInterface {
     markdownFiles(): TFile[];
     /** A note's cached metadata, or null if Obsidian has not indexed it yet. */
     metadata(file: TFile): CachedMetadata | null;
-    /**
-     * Reveal a note, scrolling to a line where one is given.
-     *
-     * @param beside the leaf the request came from; the note opens next to it
-     */
-    openNote(
-        path: string,
-        line: number | null,
-        beside: WorkspaceLeaf | null
-    ): Promise<void>;
+    /** Reveal a note, scrolling to a line where one is given. */
+    openNote(path: string, line: number | null): Promise<void>;
 }
 
 export class ObsidianIO implements ObsidianInterface {
@@ -46,17 +38,13 @@ export class ObsidianIO implements ObsidianInterface {
      *   file that has been deleted is a bug in the index, not something to
      *   paper over by doing nothing
      */
-    async openNote(
-        path: string,
-        line: number | null,
-        beside: WorkspaceLeaf | null
-    ): Promise<void> {
+    async openNote(path: string, line: number | null): Promise<void> {
         const file = this.app.vault.getAbstractFileByPath(path);
         if (!(file instanceof TFile)) {
             throw new Error(`Map pin refers to a missing note: ${path}`);
         }
 
-        const leaf = this.leafForNotes(beside);
+        const leaf = this.leafForNotes();
         // eState is how Obsidian's own link handling scrolls to a line.
         await leaf.openFile(
             file,
@@ -66,20 +54,21 @@ export class ObsidianIO implements ObsidianInterface {
     }
 
     /**
-     * Where a note opened from the map should go: immediately to the right of
-     * the map, never in whichever markdown pane happens to be open elsewhere.
+     * Where a note opened from the map should go: a tab alongside the map,
+     * never a split pane and never whichever markdown view happens to be open
+     * elsewhere in the workspace.
      *
-     * The pane is created once and reused, so clicking pin after pin does not
+     * `getLeaf("tab")` places the tab in the active group, which is the map's
+     * own, since clicking a pin activates it.
+     *
+     * The tab is created once and reused, so clicking pin after pin does not
      * bury the workspace in tabs. Reuse is conditional on the leaf still being
      * in the workspace, since the user may have closed it since.
      */
-    private leafForNotes(beside: WorkspaceLeaf | null): WorkspaceLeaf {
+    private leafForNotes(): WorkspaceLeaf {
         if (this.noteLeaf && this.isOpen(this.noteLeaf)) return this.noteLeaf;
 
-        this.noteLeaf = beside
-            ? this.app.workspace.createLeafBySplit(beside, "vertical", false)
-            : this.app.workspace.getLeaf("tab");
-
+        this.noteLeaf = this.app.workspace.getLeaf("tab");
         return this.noteLeaf;
     }
 

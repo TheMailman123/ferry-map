@@ -124,7 +124,7 @@ export class FerryMapView extends ItemView {
 
     private openNote(tag: GeoTag): void {
         this.plugin.obsidian
-            .openNote(tag.path, tag.line, this.leaf)
+            .openNote(tag.path, tag.line)
             .catch((error: Error) => {
                 // Surfaced rather than swallowed: a pin that silently does nothing
                 // when clicked is worse than one that says why.
