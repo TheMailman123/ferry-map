@@ -1,0 +1,24 @@
+# editors
+.vscode
+.idea
+*.iml
+
+# npm
+node_modules
+coverage/
+
+# Build output. Released via GitHub releases, not committed.
+# Anchored to the repo root so source CSS under src/ is still tracked.
+/main.js
+/main.css
+/styles.css
+*.map
+
+# obsidian
+data.json
+.obsidian
+
+.DS_Store
+
+# Local deploy target — contains a personal vault path, never committed.
+.deploy.local.json

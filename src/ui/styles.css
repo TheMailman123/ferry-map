@@ -1,0 +1,10 @@
+.obsidian-map-view {
+    padding: 0;
+}
+
+/* The map fills the tab; the surface itself needs an explicit height because
+   the leaf content area does not impose one on its children. */
+.obsidian-map-container {
+    width: 100%;
+    height: 100%;
+}

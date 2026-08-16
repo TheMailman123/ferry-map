@@ -1,0 +1,9 @@
+{
+	"id": "obsidian-map",
+	"name": "Map",
+	"version": "0.0.1",
+	"minAppVersion": "1.0.0",
+	"description": "A navigable world map view over geotagged notes in your vault.",
+	"author": "TheMailman123",
+	"isDesktopOnly": false
+}
