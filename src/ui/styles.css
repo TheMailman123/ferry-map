@@ -49,11 +49,17 @@
 /* The pin itself. --ferry-map-marker-colour is set per marker once colour
    groups exist; until then every pin takes the accent colour. */
 .ferry-map-pin {
+    /* Named here rather than in the script so the fallback colour stays a
+       decision of the stylesheet; map.ts refers to this property when it builds
+       the gradient for a pin covering more than one group. */
+    --ferry-map-marker-default: var(--interactive-accent);
+
+    position: relative;
     width: 100%;
     height: 100%;
     border-radius: 50%;
     box-sizing: border-box;
-    background-color: var(--ferry-map-marker-colour, var(--interactive-accent));
+    background-color: var(--ferry-map-marker-colour, var(--ferry-map-marker-default));
     border: 2px solid var(--background-primary);
     box-shadow: 0 1px 3px rgba(0, 0, 0, 0.5);
 }
@@ -67,6 +73,34 @@
     font-size: var(--font-smallest);
     font-weight: var(--font-bold);
     line-height: 1;
+}
+
+/* A cluster covering more than one colour group wears all of them, each
+   segment sized by how many of the notes beneath it are in that group. The
+   stops come from map.ts, which knows the counts. */
+.ferry-map-pin.is-mixed {
+    background: conic-gradient(var(--ferry-map-marker-segments));
+}
+
+/* The segments are drawn as a ring around a plain centre rather than as a full
+   pie: the count has to stay readable, and it cannot be against two or three
+   arbitrary group colours at once. */
+.ferry-map-pin.is-mixed::before {
+    content: "";
+    position: absolute;
+    inset: 5px;
+    border-radius: 50%;
+    background-color: var(--background-primary);
+}
+
+.ferry-map-pin.is-mixed .ferry-map-pin-count {
+    color: var(--text-normal);
+}
+
+/* Above the ring's inner disc, which is positioned and would otherwise cover
+   it. */
+.ferry-map-pin-count {
+    position: relative;
 }
 
 .ferry-map-marker:hover .ferry-map-pin,
@@ -244,4 +278,26 @@
 .ferry-map-group-add {
     align-self: flex-start;
     font-size: var(--font-ui-small);
+}
+
+/* Type-ahead in the query boxes. Obsidian styles the popover and its rows; all
+   that is needed here is to push the kind label to the far end so the values
+   line up down the left and stay scannable. */
+.ferry-map-suggestion {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: var(--size-4-3);
+}
+
+.ferry-map-suggestion-value {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.ferry-map-suggestion-kind {
+    flex: 0 0 auto;
+    color: var(--text-faint);
+    font-size: var(--font-ui-smaller);
 }

@@ -28,12 +28,20 @@ export interface Cluster {
     /** Members, ordered by id. A cluster of one is an ordinary pin. */
     members: MapMarker[];
     /**
-     * The colour the cluster is drawn in, or null for the default.
+     * What colours are underneath, and how much of each. Never empty.
      *
      * Deliberately not part of {@link id}: a recoloured cluster is the same
      * cluster and should be restyled where it stands, not rebuilt.
      */
+    colours: ColourSlice[];
+}
+
+/** A run of a cluster's members sharing one colour. */
+export interface ColourSlice {
+    /** The group's colour, or null for members no group claimed. */
     colour: string | null;
+    /** How many of the cluster's members have it. */
+    count: number;
 }
 
 /**
@@ -124,24 +132,37 @@ function makeCluster(members: MapMarker[]): Cluster {
         id: `${ordered[0].id}+${ordered.length}`,
         coordinate: centre(ordered),
         members: ordered,
-        colour: sharedColour(ordered),
+        colours: colourSlices(ordered),
     };
 }
 
 /**
- * The colour a cluster is drawn in: its members' colour where they agree, and
- * the default where they do not.
+ * Break a cluster down by colour, so a pin can show what is under it.
  *
- * One pin standing for notes in two different colour groups cannot honestly
- * wear either colour, and picking one would misreport what is underneath. The
- * default says "several things, look closer", which is what the count already
- * says.
+ * A pin standing for notes in two colour groups cannot honestly wear one of
+ * them, and picking either would misreport what is there — but it can wear
+ * both, in proportion, which is what the map draws. A uniform cluster comes
+ * back as a single slice and is drawn as a plain pin.
+ *
+ * Slices are ordered by where each colour first appears among the members,
+ * which are themselves ordered by id. So the same membership always yields the
+ * same order, and a pin's segments do not rearrange themselves when an
+ * unrelated note changes.
+ *
+ * @param members a cluster's members, already ordered by id
+ * @returns one slice per distinct colour, never empty
  */
-function sharedColour(members: MapMarker[]): string | null {
-    const [first] = members;
-    return members.every((member) => member.colour === first.colour)
-        ? first.colour
-        : null;
+export function colourSlices(members: readonly MapMarker[]): ColourSlice[] {
+    const slices: ColourSlice[] = [];
+    // Small enough that a linear scan beats a map keyed on a nullable colour:
+    // a cluster is a handful of pins and rarely more than two or three groups.
+    for (const member of members) {
+        const existing = slices.find((slice) => slice.colour === member.colour);
+        if (existing) existing.count++;
+        else slices.push({ colour: member.colour, count: 1 });
+    }
+
+    return slices;
 }
 
 /**

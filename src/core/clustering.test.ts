@@ -201,10 +201,10 @@ describe("cluster colours", () => {
             RADIUS
         );
 
-        expect(cluster.colour).toBe("red");
+        expect(cluster.colours).toEqual([{ colour: "red", count: 1 }]);
     });
 
-    it("takes the colour its members agree on", () => {
+    it("is one slice when its members agree", () => {
         const [cluster] = clusterMarkers(
             [marker("a", 0, 0, "red"), marker("b", 0, 1, "red")],
             project,
@@ -212,29 +212,75 @@ describe("cluster colours", () => {
         );
 
         expect(cluster.members).toHaveLength(2);
-        expect(cluster.colour).toBe("red");
+        expect(cluster.colours).toEqual([{ colour: "red", count: 2 }]);
     });
 
-    it("falls back to the default when its members disagree", () => {
-        // A single pin cannot honestly wear one group's colour when it stands
-        // for notes in two.
+    it("splits into a slice per colour when its members disagree", () => {
+        // A pin standing for notes in two groups wears both, in proportion.
         const [cluster] = clusterMarkers(
-            [marker("a", 0, 0, "red"), marker("b", 0, 1, "blue")],
+            [
+                marker("a", 0, 0, "red"),
+                marker("b", 0, 1, "blue"),
+                marker("c", 0, 2, "red"),
+            ],
             project,
             RADIUS
         );
 
-        expect(cluster.colour).toBeNull();
+        expect(cluster.colours).toEqual([
+            { colour: "red", count: 2 },
+            { colour: "blue", count: 1 },
+        ]);
     });
 
-    it("falls back when only some members are coloured", () => {
+    it("gives uncoloured members a slice of their own", () => {
         const [cluster] = clusterMarkers(
             [marker("a", 0, 0, "red"), marker("b", 0, 1)],
             project,
             RADIUS
         );
 
-        expect(cluster.colour).toBeNull();
+        expect(cluster.colours).toEqual([
+            { colour: "red", count: 1 },
+            { colour: null, count: 1 },
+        ]);
+    });
+
+    it("counts every member exactly once", () => {
+        const markers = [
+            marker("a", 0, 0, "red"),
+            marker("b", 0, 1),
+            marker("c", 0, 2, "blue"),
+            marker("d", 0, 3, "red"),
+        ];
+        const [cluster] = clusterMarkers(markers, project, RADIUS);
+
+        const counted = cluster.colours.reduce(
+            (total, slice) => total + slice.count,
+            0
+        );
+        expect(counted).toBe(markers.length);
+    });
+
+    it("orders slices by where each colour first appears", () => {
+        // Members arrive ordered by id, so the same membership always draws its
+        // segments in the same order however the markers were passed in.
+        const forwards = clusterMarkers(
+            [marker("a", 0, 0, "red"), marker("b", 0, 1, "blue")],
+            project,
+            RADIUS
+        );
+        const backwards = clusterMarkers(
+            [marker("b", 0, 1, "blue"), marker("a", 0, 0, "red")],
+            project,
+            RADIUS
+        );
+
+        expect(forwards[0].colours).toEqual([
+            { colour: "red", count: 1 },
+            { colour: "blue", count: 1 },
+        ]);
+        expect(backwards[0].colours).toEqual(forwards[0].colours);
     });
 
     it("keeps colour out of the cluster id", () => {

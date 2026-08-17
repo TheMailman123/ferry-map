@@ -13,7 +13,7 @@ import {
     clampLatitude,
     normaliseLongitude,
 } from "../core/coordinates";
-import { Cluster, clusterMarkers } from "../core/clustering";
+import { Cluster, ColourSlice, clusterMarkers } from "../core/clustering";
 import { MapMarker } from "../core/markers";
 import { BaseLayerId, SavedMapView, TileLayerSettings } from "./settings";
 
@@ -37,8 +37,25 @@ const TOOLTIP_MEMBER_LIMIT = 8;
 /** The pin element inside a marker's icon. Styled by `styles.css`. */
 const PIN_CLASS = "ferry-map-pin";
 
+/** Set on a pin standing for more than one colour. */
+const MIXED_CLASS = "is-mixed";
+
 /** Custom property the stylesheet reads a group's colour from. */
 const MARKER_COLOUR_PROPERTY = "--ferry-map-marker-colour";
+
+/**
+ * Custom property the stylesheet reads a mixed pin's segments from: the stop
+ * list of a `conic-gradient`, without the surrounding function call.
+ */
+const MARKER_SEGMENTS_PROPERTY = "--ferry-map-marker-segments";
+
+/**
+ * What an uncoloured slice is drawn in, as CSS the gradient can name.
+ *
+ * A `var()` rather than a literal so the actual colour stays a decision of the
+ * stylesheet, alongside the one it makes for an ordinary uncoloured pin.
+ */
+const DEFAULT_SLICE_COLOUR = "var(--ferry-map-marker-default)";
 
 export interface MapSurfaceOptions {
     tiles: Record<BaseLayerId, TileLayerSettings>;
@@ -262,7 +279,7 @@ export class MapSurface {
         // a visible flicker for what is only a change of colour.
         paint(
             existing.getElement()?.querySelector(`.${PIN_CLASS}`),
-            cluster.colour
+            cluster.colours
         );
 
         existing.setTooltipContent(tooltipContent(cluster));
@@ -291,9 +308,11 @@ function pinIcon(cluster: Cluster): L.DivIcon {
     el.addClass(PIN_CLASS);
     if (count > 1) {
         el.addClass("ferry-map-pin-cluster");
-        el.setText(String(count));
+        // The count is its own element rather than a bare text node so a mixed
+        // pin can draw its segments behind it and still have it readable.
+        el.createSpan({ cls: "ferry-map-pin-count" }).setText(String(count));
     }
-    paint(el, cluster.colour);
+    paint(el, cluster.colours);
 
     return L.divIcon({
         className: "ferry-map-marker",
@@ -305,19 +324,61 @@ function pinIcon(cluster: Cluster): L.DivIcon {
 }
 
 /**
- * Colour a pin, or return it to the theme's default.
+ * Colour a pin from its cluster's colour breakdown.
  *
- * The colour is set as a custom property rather than as `background-color` so
- * the stylesheet keeps control of how a pin is drawn — the property is one
- * input to that, and hover and cluster styling still work off it.
+ * Colours are set as custom properties rather than as a background so the
+ * stylesheet keeps control of how a pin is drawn — the properties are inputs to
+ * that, and hover and cluster styling still work off them.
+ *
+ * A pin with one colour is painted flat, which covers every single-note pin and
+ * every cluster whose notes all fall in the same group. More than one and it
+ * becomes a ring of segments, sized by how many notes each colour stands for.
  *
  * @param el the pin element, or null if the marker is not on the map right now
+ * @param slices the cluster's colours, in the order they should be drawn
  */
-function paint(el: Element | null | undefined, colour: string | null): void {
+function paint(
+    el: Element | null | undefined,
+    slices: readonly ColourSlice[]
+): void {
     if (!(el instanceof HTMLElement)) return;
 
-    if (colour) el.style.setProperty(MARKER_COLOUR_PROPERTY, colour);
-    else el.style.removeProperty(MARKER_COLOUR_PROPERTY);
+    const [only] = slices;
+    const mixed = slices.length > 1;
+
+    el.toggleClass(MIXED_CLASS, mixed);
+
+    if (mixed) el.style.setProperty(MARKER_SEGMENTS_PROPERTY, stops(slices));
+    else el.style.removeProperty(MARKER_SEGMENTS_PROPERTY);
+
+    if (!mixed && only?.colour) {
+        el.style.setProperty(MARKER_COLOUR_PROPERTY, only.colour);
+    } else {
+        el.style.removeProperty(MARKER_COLOUR_PROPERTY);
+    }
+}
+
+/**
+ * The stop list of the `conic-gradient` that draws a mixed pin's ring.
+ *
+ * Each stop is given both its start and end angle, so the gradient steps
+ * between colours instead of blending them — a blend would invent colours no
+ * group has. Angles are accumulated as exact fractions of the total rather than
+ * summed per slice, so rounding cannot leave a hairline gap or overshoot 360.
+ */
+function stops(slices: readonly ColourSlice[]): string {
+    const total = slices.reduce((sum, slice) => sum + slice.count, 0);
+
+    let counted = 0;
+    return slices
+        .map((slice) => {
+            const from = (360 * counted) / total;
+            counted += slice.count;
+            const to = (360 * counted) / total;
+            const colour = slice.colour ?? DEFAULT_SLICE_COLOUR;
+            return `${colour} ${from}deg ${to}deg`;
+        })
+        .join(", ");
 }
 
 /** Plain-text label, for the marker's title and accessible name. */
