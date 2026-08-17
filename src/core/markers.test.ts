@@ -1,4 +1,5 @@
 import { GeoTag } from "./geotags";
+import { NoteStyle } from "./groups";
 import { buildMarkers } from "./markers";
 
 function tag(
@@ -133,5 +134,89 @@ describe("buildMarkers", () => {
         markers[1].onSelect();
 
         expect(selected).toEqual(["b.md"]);
+    });
+
+    it("leaves pins in the default colour when nothing is styled", () => {
+        const [marker] = buildMarkers([tag("a.md", 58, -4)], noop);
+
+        expect(marker.colour).toBeNull();
+    });
+});
+
+describe("buildMarkers with filters and colour groups", () => {
+    /** Styles pins by note path, defaulting to plain and visible. */
+    function styler(styles: Record<string, NoteStyle>) {
+        return (path: string) =>
+            styles[path] ?? { hidden: false, colour: null };
+    }
+
+    it("colours a note's pins", () => {
+        const markers = buildMarkers(
+            [tag("a.md", 58, -4), tag("b.md", 51, 0)],
+            noop,
+            styler({ "a.md": { hidden: false, colour: "red" } })
+        );
+
+        expect(markers.map((m) => m.colour)).toEqual(["red", null]);
+    });
+
+    it("omits the pins of a filtered-out note", () => {
+        const markers = buildMarkers(
+            [tag("a.md", 58, -4), tag("b.md", 51, 0), tag("b.md", 40, 10)],
+            noop,
+            styler({ "b.md": { hidden: true, colour: null } })
+        );
+
+        expect(markers.map((m) => m.id)).toEqual(["a.md#0"]);
+    });
+
+    it("keeps ids stable across a note being hidden and shown again", () => {
+        // A filter must not renumber the pins it leaves alone, or clearing it
+        // would rebuild every marker rather than restoring the hidden ones.
+        const tags = [
+            tag("a.md", 58, -4),
+            tag("b.md", 51, 0),
+            tag("a.md", 40, 10),
+        ];
+
+        const filtered = buildMarkers(
+            tags,
+            noop,
+            styler({ "b.md": { hidden: true, colour: null } })
+        );
+        const restored = buildMarkers(tags, noop);
+
+        expect(filtered.map((m) => m.id)).toEqual(["a.md#0", "a.md#1"]);
+        expect(restored.map((m) => m.id)).toEqual([
+            "a.md#0",
+            "b.md#0",
+            "a.md#1",
+        ]);
+    });
+
+    it("does not put the colour in a pin's id", () => {
+        // Recolouring must restyle the marker where it stands, not rebuild it.
+        const plain = buildMarkers([tag("a.md", 58, -4)], noop);
+        const coloured = buildMarkers(
+            [tag("a.md", 58, -4)],
+            noop,
+            styler({ "a.md": { hidden: false, colour: "red" } })
+        );
+
+        expect(coloured[0].id).toBe(plain[0].id);
+    });
+
+    it("asks about a note once per geotag, by path", () => {
+        const asked: string[] = [];
+        buildMarkers(
+            [tag("a.md", 58, -4), tag("b.md", 51, 0)],
+            noop,
+            (path) => {
+                asked.push(path);
+                return { hidden: false, colour: null };
+            }
+        );
+
+        expect(asked).toEqual(["a.md", "b.md"]);
     });
 });

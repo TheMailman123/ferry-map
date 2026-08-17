@@ -1,4 +1,5 @@
 import { App, PluginSettingTab, Setting } from "obsidian";
+import { ColourGroup } from "../core/groups";
 import type FerryMapPlugin from "../main";
 
 /** Which of the two base layers is showing. */
@@ -23,11 +24,43 @@ export interface SavedMapView {
     layer: BaseLayerId;
 }
 
+/** State of the control panel. Persisted so the map reopens as it was left. */
+export interface ControlsState {
+    /** Query hiding non-matching pins. Empty shows everything. */
+    filter: string;
+    /** Colour groups in priority order: where several match, the first wins. */
+    groups: ColourGroup[];
+    /** Whether the panel is expanded rather than collapsed to its button. */
+    open: boolean;
+}
+
 export interface FerryMapSettings {
     /** Schema version, so stored settings can be migrated across releases. */
     version: number;
     tiles: Record<BaseLayerId, TileLayerSettings>;
     view: SavedMapView;
+    controls: ControlsState;
+}
+
+/**
+ * Colours offered to successive new groups.
+ *
+ * Cycled rather than picked at random so two groups added in a row are always
+ * told apart, and taken from Obsidian's own accent range so they sit in a
+ * vault's theme rather than fighting it.
+ */
+export const GROUP_COLOURS = [
+    "#e05252",
+    "#e0a352",
+    "#3fae6a",
+    "#4f8fe0",
+    "#a35ce0",
+    "#d95fa8",
+];
+
+/** The colour a group added to an existing list should take. */
+export function nextGroupColour(existing: readonly ColourGroup[]): string {
+    return GROUP_COLOURS[existing.length % GROUP_COLOURS.length];
 }
 
 export const DEFAULT_SETTINGS: FerryMapSettings = {
@@ -50,6 +83,7 @@ export const DEFAULT_SETTINGS: FerryMapSettings = {
         },
     },
     view: { lat: 20, lon: 0, zoom: 2, layer: "map" },
+    controls: { filter: "", groups: [], open: false },
 };
 
 export class FerryMapSettingTab extends PluginSettingTab {

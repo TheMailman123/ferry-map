@@ -16,14 +16,25 @@ function asFile(path: string): TFile {
     return { path } as TFile;
 }
 
+/** The metadata a note reports: its links, plus the tags queries match on. */
+type FakeCache = MetadataLike & { tags?: { tag: string }[] };
+
 /**
  * A stand-in vault: a map of note path to the metadata Obsidian would report.
  */
 class FakeVault implements ObsidianInterface {
-    readonly notes = new Map<string, MetadataLike>();
+    readonly notes = new Map<string, FakeCache>();
 
     put(path: string, ...targets: string[]): void {
         this.notes.set(path, { links: targets.map((t) => geotag(t)) });
+    }
+
+    /** A note carrying both geotags and tags, for the query side of the store. */
+    putTagged(path: string, tags: string[], ...targets: string[]): void {
+        this.notes.set(path, {
+            links: targets.map((t) => geotag(t)),
+            tags: tags.map((tag) => ({ tag })),
+        });
     }
 
     markdownFiles(): TFile[] {
@@ -230,6 +241,137 @@ describe("GeoStore.renamePath", () => {
         store.renamePath("plain.md", "still-plain.md");
 
         expect(paths(store)).toEqual(["a.md"]);
+    });
+});
+
+describe("GeoStore.doc", () => {
+    it("describes an indexed note for the query engine", () => {
+        const { vault, store } = setup();
+        vault.putTagged("TRIPS/Skye.md", ["#trip", "#ferry"], "57.3, -6.2");
+        store.scanVault();
+
+        expect(store.doc("TRIPS/Skye.md")).toEqual({
+            path: "TRIPS/Skye.md",
+            basename: "Skye",
+            tags: ["#trip", "#ferry"],
+        });
+    });
+
+    it("reads tags declared as a frontmatter property", () => {
+        const { vault, store } = setup();
+        vault.notes.set("a.md", {
+            links: [geotag("57.3, -6.2")],
+            frontmatter: { tags: ["trip"] },
+        } as FakeCache);
+        store.scanVault();
+
+        expect(store.doc("a.md").tags).toEqual(["#trip"]);
+    });
+
+    it("describes a note with no tags", () => {
+        const { vault, store } = setup();
+        vault.put("a.md", "57.3, -6.2");
+        store.scanVault();
+
+        expect(store.doc("a.md").tags).toEqual([]);
+    });
+
+    it("throws for a path that is not indexed", () => {
+        // A pin always comes from an indexed note, so this is a bug in the
+        // index rather than a note to quietly treat as untagged.
+        const { vault, store } = setup();
+        vault.put("a.md", "57.3, -6.2");
+        store.scanVault();
+
+        expect(() => store.doc("plain.md")).toThrow(/no note is indexed/i);
+    });
+
+    it("keeps docs in step with a note losing its geotags", () => {
+        const { vault, store } = setup();
+        vault.putTagged("a.md", ["#trip"], "57.3, -6.2");
+        store.scanVault();
+
+        vault.put("a.md");
+        store.updateNote(asFile("a.md"));
+
+        expect(() => store.doc("a.md")).toThrow();
+    });
+
+    it("picks up tags added to a note", () => {
+        const { vault, store } = setup();
+        vault.put("a.md", "57.3, -6.2");
+        store.scanVault();
+
+        vault.putTagged("a.md", ["#trip"], "57.3, -6.2");
+        store.updateNote(asFile("a.md"));
+
+        expect(store.doc("a.md").tags).toEqual(["#trip"]);
+    });
+
+    it("forgets the doc of a deleted note", () => {
+        const { vault, store } = setup();
+        vault.putTagged("a.md", ["#trip"], "57.3, -6.2");
+        store.scanVault();
+
+        store.removeNote("a.md");
+
+        expect(() => store.doc("a.md")).toThrow();
+    });
+
+    it("forgets the docs beneath a deleted folder", () => {
+        const { vault, store } = setup();
+        vault.putTagged("TRIPS/a.md", ["#trip"], "57.3, -6.2");
+        vault.putTagged("OTHER/b.md", ["#food"], "51.5, 0");
+        store.scanVault();
+
+        store.removeUnder("TRIPS");
+
+        expect(() => store.doc("TRIPS/a.md")).toThrow();
+        expect(store.doc("OTHER/b.md").tags).toEqual(["#food"]);
+    });
+
+    it("re-derives the name of a renamed note, keeping its tags", () => {
+        // A rename does not re-index the note, so the tags have to be carried
+        // over — but `file:` queries match the name, which has changed.
+        const { vault, store } = setup();
+        vault.putTagged("TRIPS/old.md", ["#trip"], "57.3, -6.2");
+        store.scanVault();
+
+        store.renamePath("TRIPS/old.md", "TRIPS/new.md");
+
+        expect(store.doc("TRIPS/new.md")).toEqual({
+            path: "TRIPS/new.md",
+            basename: "new",
+            tags: ["#trip"],
+        });
+        expect(() => store.doc("TRIPS/old.md")).toThrow();
+    });
+
+    it("moves the docs beneath a renamed folder", () => {
+        const { vault, store } = setup();
+        vault.putTagged("TRIPS/nested/a.md", ["#trip"], "57.3, -6.2");
+        store.scanVault();
+
+        store.renamePath("TRIPS", "JOURNEYS");
+
+        expect(store.doc("JOURNEYS/nested/a.md")).toEqual({
+            path: "JOURNEYS/nested/a.md",
+            basename: "a",
+            tags: ["#trip"],
+        });
+    });
+
+    it("scans docs afresh, dropping what a previous scan held", () => {
+        const { vault, store } = setup();
+        vault.putTagged("a.md", ["#trip"], "57.3, -6.2");
+        store.scanVault();
+
+        vault.notes.clear();
+        vault.putTagged("b.md", ["#food"], "51.5, 0");
+        store.scanVault();
+
+        expect(() => store.doc("a.md")).toThrow();
+        expect(store.doc("b.md").tags).toEqual(["#food"]);
     });
 });
 

@@ -27,6 +27,13 @@ export interface Cluster {
     coordinate: Coordinate;
     /** Members, ordered by id. A cluster of one is an ordinary pin. */
     members: MapMarker[];
+    /**
+     * The colour the cluster is drawn in, or null for the default.
+     *
+     * Deliberately not part of {@link id}: a recoloured cluster is the same
+     * cluster and should be restyled where it stands, not rebuilt.
+     */
+    colour: string | null;
 }
 
 /**
@@ -117,7 +124,24 @@ function makeCluster(members: MapMarker[]): Cluster {
         id: `${ordered[0].id}+${ordered.length}`,
         coordinate: centre(ordered),
         members: ordered,
+        colour: sharedColour(ordered),
     };
+}
+
+/**
+ * The colour a cluster is drawn in: its members' colour where they agree, and
+ * the default where they do not.
+ *
+ * One pin standing for notes in two different colour groups cannot honestly
+ * wear either colour, and picking one would misreport what is underneath. The
+ * default says "several things, look closer", which is what the count already
+ * says.
+ */
+function sharedColour(members: MapMarker[]): string | null {
+    const [first] = members;
+    return members.every((member) => member.colour === first.colour)
+        ? first.colour
+        : null;
 }
 
 /**

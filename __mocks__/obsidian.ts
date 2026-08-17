@@ -35,6 +35,36 @@ export class TFolder extends TAbstractFile {
     }
 }
 
+/**
+ * Every tag on a note, body and frontmatter alike, each with a leading `#`.
+ *
+ * Obsidian's own version accepts the several spellings the `tags` property
+ * allows — a list, a single string, or a comma-separated one — so this stands
+ * in for all of them. Returns null for a note with no tags, as the real one
+ * does, which is why callers have to cope with null.
+ */
+export function getAllTags(cache: {
+    tags?: { tag: string }[];
+    frontmatter?: Record<string, unknown>;
+}): string[] | null {
+    const tags = (cache.tags ?? []).map((entry) => entry.tag);
+
+    const declared = cache.frontmatter?.tags;
+    const listed = Array.isArray(declared)
+        ? declared
+        : typeof declared === "string"
+        ? declared.split(",")
+        : [];
+
+    for (const tag of listed) {
+        const trimmed = String(tag).trim();
+        if (trimmed)
+            tags.push(trimmed.startsWith("#") ? trimmed : `#${trimmed}`);
+    }
+
+    return tags.length > 0 ? tags : null;
+}
+
 /** Records user-facing messages so tests can assert on them. */
 export class Notice {
     static notices: string[] = [];

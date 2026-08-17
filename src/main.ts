@@ -83,9 +83,11 @@ export default class FerryMapPlugin extends Plugin {
     }
 
     async loadSettings(): Promise<void> {
+        // The defaults are cloned, not merged from: settings are edited in
+        // place — a tile URL, a group's colour — and a shallow merge would hand
+        // out the default objects themselves to be mutated.
         this.settings = Object.assign(
-            {},
-            DEFAULT_SETTINGS,
+            structuredClone(DEFAULT_SETTINGS),
             await this.loadData()
         );
     }

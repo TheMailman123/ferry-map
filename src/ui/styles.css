@@ -1,9 +1,12 @@
-/* The leaf's content area. Obsidian pads this by default; the map fills it. */
+/* The leaf's content area. Obsidian pads this by default; the map fills it.
+   Positioned so the control panel can sit over the map without being inside
+   it — a child of the Leaflet container would feed it drags and clicks. */
 .ferry-map-view {
     padding: 0;
     display: flex;
     flex-direction: column;
     overflow: hidden;
+    position: relative;
 }
 
 .ferry-map-container {
@@ -91,4 +94,154 @@
 .ferry-map-tooltip-note {
     color: var(--text-muted);
     font-size: var(--font-smaller);
+}
+
+/* --- The filter and colour-group panel -------------------------------- */
+
+/* Over the map's top-left corner, clear of Leaflet's own controls, which sit
+   at a z-index of 400-1000 within the map container. */
+.ferry-map-controls {
+    position: absolute;
+    top: var(--size-4-2);
+    left: var(--size-4-2);
+    z-index: 1001;
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: var(--size-4-1);
+    /* The panel is only as wide as it needs to be, so the map is not covered
+       by an empty card when the sections are collapsed. */
+    max-width: min(20rem, calc(100% - var(--size-4-4)));
+}
+
+.ferry-map-controls-toggle {
+    background-color: var(--background-primary);
+    border: 1px solid var(--background-modifier-border);
+    box-shadow: var(--shadow-s);
+    color: var(--text-muted);
+}
+
+.ferry-map-controls.is-open .ferry-map-controls-toggle {
+    color: var(--text-accent);
+}
+
+.ferry-map-controls-panel {
+    display: none;
+    flex-direction: column;
+    gap: var(--size-4-2);
+    padding: var(--size-4-3);
+    background-color: var(--background-primary);
+    border: 1px solid var(--background-modifier-border);
+    border-radius: var(--radius-m);
+    box-shadow: var(--shadow-s);
+    /* Never taller than the map: a long group list scrolls inside the card. */
+    max-height: calc(100vh - 8rem);
+    overflow-y: auto;
+}
+
+.ferry-map-controls.is-open .ferry-map-controls-panel {
+    display: flex;
+}
+
+.ferry-map-section-header {
+    display: flex;
+    align-items: center;
+    gap: var(--size-4-1);
+    width: 100%;
+    padding: 0;
+    background: transparent;
+    border: none;
+    box-shadow: none;
+    color: var(--text-muted);
+    font-size: var(--font-smaller);
+    font-weight: var(--font-semibold);
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    cursor: pointer;
+}
+
+.ferry-map-section-header:hover {
+    color: var(--text-normal);
+}
+
+.ferry-map-section-chevron {
+    display: flex;
+    transition: transform 100ms ease-in-out;
+}
+
+.ferry-map-section.is-collapsed .ferry-map-section-chevron {
+    transform: rotate(-90deg);
+}
+
+.ferry-map-section-body {
+    display: flex;
+    flex-direction: column;
+    gap: var(--size-4-2);
+    padding-top: var(--size-4-2);
+}
+
+.ferry-map-section.is-collapsed .ferry-map-section-body {
+    display: none;
+}
+
+.ferry-map-controls-query {
+    width: 100%;
+    font-size: var(--font-ui-small);
+}
+
+.ferry-map-groups {
+    display: flex;
+    flex-direction: column;
+    gap: var(--size-4-1);
+}
+
+.ferry-map-group {
+    display: flex;
+    align-items: center;
+    gap: var(--size-4-1);
+}
+
+/* The query is the row's only flexible part; the swatch and the remove button
+   keep their size so the rows line up down the list. */
+.ferry-map-group .search-input-container {
+    flex: 1 1 auto;
+    min-width: 0;
+}
+
+.ferry-map-group-colour {
+    flex: 0 0 auto;
+    width: 1.6rem;
+    height: 1.6rem;
+    padding: 0;
+    border: 1px solid var(--background-modifier-border);
+    border-radius: 50%;
+    background: transparent;
+    cursor: pointer;
+    /* A colour input draws its own bevelled box; strip it back to the swatch. */
+    -webkit-appearance: none;
+    appearance: none;
+    overflow: hidden;
+}
+
+.ferry-map-group-colour::-webkit-color-swatch-wrapper {
+    padding: 0;
+}
+
+.ferry-map-group-colour::-webkit-color-swatch {
+    border: none;
+    border-radius: 50%;
+}
+
+.ferry-map-group-remove {
+    flex: 0 0 auto;
+    color: var(--text-faint);
+}
+
+.ferry-map-group-remove:hover {
+    color: var(--text-error);
+}
+
+.ferry-map-group-add {
+    align-self: flex-start;
+    font-size: var(--font-ui-small);
 }

@@ -6,20 +6,24 @@ import {
     formatGeotag,
 } from "../core/coordinates";
 import { GeoTag } from "../core/geotags";
+import { compileGroups, noteStyler } from "../core/groups";
 import { MapMarker, buildMarkers } from "../core/markers";
+import { parseQuery } from "../core/query";
 import type FerryMapPlugin from "../main";
+import { MapControls } from "./controls";
 import { MapSurface } from "./map";
-import { SavedMapView } from "./settings";
+import { ControlsState, SavedMapView } from "./settings";
 import "./styles.css";
 
 export const FERRY_MAP_VIEW_TYPE = "ferry-map-view";
 
-/** How long panning must settle before the view position is written to disk. */
-const VIEW_SAVE_DELAY_MS = 500;
+/** How long a change must settle before settings are written to disk. */
+const SAVE_DELAY_MS = 500;
 
 export class FerryMapView extends ItemView {
     private readonly plugin: FerryMapPlugin;
     private surface: MapSurface | null = null;
+    private controls: MapControls | null = null;
     private unsubscribe: (() => void) | null = null;
     private saveTimer: number | null = null;
 
@@ -59,6 +63,14 @@ export class FerryMapView extends ItemView {
                 this.showCopyMenu(coordinate, event),
         });
 
+        // Deliberately a sibling of the map container, not a child of it: a
+        // drag or a right-click inside the panel is then never also one on the
+        // map, without any Leaflet event plumbing to keep them apart.
+        this.controls = new MapControls(container, {
+            state: this.plugin.settings.controls,
+            onChange: (state) => this.applyControls(state),
+        });
+
         // Subscribing before the first draw matters: the view can be restored
         // at startup before the vault scan has run, and would otherwise sit
         // empty until something else happened to change.
@@ -71,7 +83,13 @@ export class FerryMapView extends ItemView {
     }
 
     async onClose(): Promise<void> {
-        this.clearSaveTimer();
+        // Destroyed first, so that a keystroke it is still holding is reported
+        // in time for the flush below to write it. Closing the tab should not
+        // discard the query the user has just typed into it.
+        this.controls?.destroy();
+        this.controls = null;
+
+        this.flushSave();
         this.unsubscribe?.();
         this.unsubscribe = null;
         this.surface?.destroy();
@@ -79,10 +97,37 @@ export class FerryMapView extends ItemView {
         this.containerEl.children[1].empty();
     }
 
+    /**
+     * Draw the pins for the current geotags, filtered and coloured.
+     *
+     * The queries are parsed here, on each draw, rather than kept compiled
+     * alongside the settings. A draw happens at most once per frame and a query
+     * is a handful of tokens, so the cost is nothing next to the certainty that
+     * what is drawn matches what the panel currently says.
+     */
     private drawMarkers(): void {
-        this.surface?.setMarkers(
-            buildMarkers(this.plugin.store.tags(), (tag) => this.openNote(tag))
+        const { filter, groups } = this.plugin.settings.controls;
+
+        const styleFor = noteStyler(
+            (path) => this.plugin.store.doc(path),
+            parseQuery(filter),
+            compileGroups(groups)
         );
+
+        this.surface?.setMarkers(
+            buildMarkers(
+                this.plugin.store.tags(),
+                (tag) => this.openNote(tag),
+                styleFor
+            )
+        );
+    }
+
+    /** Take on a change from the control panel: redraw, and remember it. */
+    private applyControls(state: ControlsState): void {
+        this.plugin.settings.controls = state;
+        this.drawMarkers();
+        this.scheduleSave();
     }
 
     /** Centre the map on a point. Used when a geotag link is followed. */
@@ -178,21 +223,37 @@ export class FerryMapView extends ItemView {
             });
     }
 
+    private rememberView(view: SavedMapView): void {
+        this.plugin.settings.view = view;
+        this.scheduleSave();
+    }
+
     /**
-     * Persist the map position, debounced.
+     * Write settings to disk once the user stops changing them.
      *
      * Leaflet fires `moveend` once per gesture, but a zoom is a move too, so a
      * quick pan-and-zoom would otherwise write data.json several times in a
-     * second for something the user is still in the middle of doing.
+     * second for something the user is still in the middle of doing. The
+     * control panel has the same shape of problem.
      */
-    private rememberView(view: SavedMapView): void {
-        this.plugin.settings.view = view;
-
+    private scheduleSave(): void {
         this.clearSaveTimer();
         this.saveTimer = window.setTimeout(() => {
             this.saveTimer = null;
             void this.plugin.saveSettings();
-        }, VIEW_SAVE_DELAY_MS);
+        }, SAVE_DELAY_MS);
+    }
+
+    /**
+     * Write a pending change now rather than waiting for it to settle. Used
+     * when the view closes, since the timer would otherwise be thrown away
+     * along with everything the user did in the last half second.
+     */
+    private flushSave(): void {
+        if (this.saveTimer === null) return;
+
+        this.clearSaveTimer();
+        void this.plugin.saveSettings();
     }
 
     private clearSaveTimer(): void {

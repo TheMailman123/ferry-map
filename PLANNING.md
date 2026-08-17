@@ -19,7 +19,7 @@ src/
     geotags.ts             link references -> GeoTag[] + GeoTagProblem[]
     geo_index.ts           path -> tags/problems, with incremental updates
     query.ts               filter/group query parsing and matching
-    groups.ts              resolve a note's colour from the ordered group list
+    groups.ts              a note's colour, and whether the filter hides it
   obsidian/
     adapter.ts             ObsidianInterface: the only place `app` is touched
     watcher.ts             cache/vault events -> incremental index updates
@@ -181,29 +181,51 @@ parser, which would make the plugin emit geotags it refuses to read back.
 **Done when:** right-click → paste into a note → the pin appears at the point
 that was clicked.
 
-## M6 — Filters and colour groups
+## M6 — Filters and colour groups *(done)*
 
 `core/query.ts` — a small recursive-descent parser producing an AST of
 `And | Or | Not | Predicate`, and `matches(ast, doc)` against a
 `NoteDoc { path, basename, tags }` assembled from the metadata cache.
 
 v1 predicates: `path:`, `file:`, `tag:`, quoted phrases, `-` negation, implicit
-AND between terms, `OR`. A bare word matches path or basename. Content matching
-is deliberately absent (see VISION.md) and slots in as one more predicate.
+AND between terms, `OR`, and brackets. A bare word matches the path, which ends
+in the file name. Content matching is deliberately absent (see VISION.md) and
+slots in as one more predicate.
+
+Brackets were not in the original list but are in Obsidian's search, and a
+recursive-descent parser gets them almost free. Treating them as literal text
+would silently misread a query typed out of graph-view habit.
+
+Parsing is **lenient by design**, because every prefix of a query is something
+the user is momentarily holding while typing: `path:` with no value yet, an
+unclosed quote or bracket, a dangling `-`. Those contribute nothing rather than
+erroring or blanking the map. The rules are enumerated on `parseQuery` and each
+one is tested.
 
 `core/groups.ts` — given the ordered group list and a `NoteDoc`, return the
 colour of the **first** group in list order whose query matches; groups lower
-in the list do not override it.
+in the list do not override it. A group with an empty query colours nothing,
+unlike an empty filter, which shows everything. `noteStyler` combines the two
+questions into the one answer the marker layer needs, memoised per note.
 
 `ui/controls.ts` — a collapsible panel over the map mirroring graph view's:
-a filter query input, and an add/remove list of groups each with a query input
-and an Obsidian colour swatch. Both persist to settings.
+a settings button opening a card of "Filters" and "Groups" sections, the first
+a query input, the second an add/remove list of groups each with a query input
+and a colour swatch. Both persist to settings, debounced.
 
-Markers are recoloured with `divIcon`s carrying a CSS custom property, so
-group colour changes restyle rather than rebuild the marker layer.
+The panel is a **sibling** of the Leaflet container rather than a child, so a
+drag or right-click inside it is never also one on the map. Nothing has to
+disable Leaflet's event handling.
 
-**Done when:** a query in the filter box hides non-matching pins, and a group
-query colours matching pins, matching graph view's behaviour on the same query.
+Markers are recoloured with `divIcon`s carrying a CSS custom property, set on
+the pin element in place, so a group colour change restyles the marker rather
+than replacing its icon. Colour is deliberately absent from both the marker and
+cluster ids. A cluster takes its members' colour only where they agree: one pin
+standing for notes in two groups cannot honestly wear either.
+
+**Done:** the filter box hides non-matching pins and group queries colour
+matching ones. 203 tests, including a mutation pass over the parser, the group
+resolution and the marker ids.
 
 ## M7 — Problems, settings, docs
 

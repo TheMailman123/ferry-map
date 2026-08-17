@@ -34,6 +34,12 @@ const CLUSTER_ZOOM_STEP = 2;
 /** How many member names a cluster's tooltip lists before summarising. */
 const TOOLTIP_MEMBER_LIMIT = 8;
 
+/** The pin element inside a marker's icon. Styled by `styles.css`. */
+const PIN_CLASS = "ferry-map-pin";
+
+/** Custom property the stylesheet reads a group's colour from. */
+const MARKER_COLOUR_PROPERTY = "--ferry-map-marker-colour";
+
 export interface MapSurfaceOptions {
     tiles: Record<BaseLayerId, TileLayerSettings>;
     /** Where to open. Restored from settings. */
@@ -251,6 +257,14 @@ export class MapSurface {
             ]);
         }
 
+        // Restyled in place rather than given a new icon: replacing the icon
+        // would tear the pin's element out of the DOM and rebuild it, which is
+        // a visible flicker for what is only a change of colour.
+        paint(
+            existing.getElement()?.querySelector(`.${PIN_CLASS}`),
+            cluster.colour
+        );
+
         existing.setTooltipContent(tooltipContent(cluster));
 
         // The click handler closes over the previous cluster, whose members may
@@ -274,11 +288,12 @@ function pinIcon(cluster: Cluster): L.DivIcon {
     const size = count > 1 ? 26 : 18;
 
     const el = document.createElement("div");
-    el.addClass("ferry-map-pin");
+    el.addClass(PIN_CLASS);
     if (count > 1) {
         el.addClass("ferry-map-pin-cluster");
         el.setText(String(count));
     }
+    paint(el, cluster.colour);
 
     return L.divIcon({
         className: "ferry-map-marker",
@@ -287,6 +302,22 @@ function pinIcon(cluster: Cluster): L.DivIcon {
         iconAnchor: [size / 2, size / 2],
         tooltipAnchor: [0, -size / 2],
     });
+}
+
+/**
+ * Colour a pin, or return it to the theme's default.
+ *
+ * The colour is set as a custom property rather than as `background-color` so
+ * the stylesheet keeps control of how a pin is drawn — the property is one
+ * input to that, and hover and cluster styling still work off it.
+ *
+ * @param el the pin element, or null if the marker is not on the map right now
+ */
+function paint(el: Element | null | undefined, colour: string | null): void {
+    if (!(el instanceof HTMLElement)) return;
+
+    if (colour) el.style.setProperty(MARKER_COLOUR_PROPERTY, colour);
+    else el.style.removeProperty(MARKER_COLOUR_PROPERTY);
 }
 
 /** Plain-text label, for the marker's title and accessible name. */

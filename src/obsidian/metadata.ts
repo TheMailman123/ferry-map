@@ -13,12 +13,14 @@
  * `MetadataLike`.
  */
 
-import type { CachedMetadata } from "obsidian";
+import { CachedMetadata, getAllTags } from "obsidian";
 import {
     GeoTagExtraction,
     MetadataLike,
     extractGeoTags,
 } from "../core/geotags";
+import { noteName } from "../core/labels";
+import { NoteDoc } from "../core/query";
 
 /** Compile-time guard. See the module comment. */
 const _cacheSatisfiesMetadataLike: (c: CachedMetadata) => MetadataLike = (c) =>
@@ -36,4 +38,26 @@ export function extractFromCache(
     cache: CachedMetadata | null
 ): GeoTagExtraction {
     return extractGeoTags(path, cache);
+}
+
+/**
+ * Describe a note the way the filter and group queries need to see it.
+ *
+ * Tags come from `getAllTags`, which is Obsidian's own union of body tags and
+ * the frontmatter `tags` property — the latter of which has several accepted
+ * spellings that are not worth reimplementing.
+ *
+ * @param path vault path of the note
+ * @param cache the note's metadata, or null when Obsidian has not indexed it
+ *   yet, which yields a note with no tags rather than an error
+ */
+export function docFromCache(
+    path: string,
+    cache: CachedMetadata | null
+): NoteDoc {
+    return {
+        path,
+        basename: noteName(path),
+        tags: cache ? getAllTags(cache) ?? [] : [],
+    };
 }

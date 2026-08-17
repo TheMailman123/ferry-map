@@ -11,12 +11,18 @@ const project = (coordinate: Coordinate) => ({
     y: coordinate.lat,
 });
 
-function marker(id: string, lat: number, lon: number): MapMarker {
+function marker(
+    id: string,
+    lat: number,
+    lon: number,
+    colour: string | null = null
+): MapMarker {
     return {
         id,
         coordinate: { lat, lon },
         label: id,
         noteName: id,
+        colour,
         onSelect: () => undefined,
     };
 }
@@ -184,5 +190,62 @@ describe("clusterMarkers", () => {
         expect(() => clusterMarkers([], project, -5)).toThrow(
             /must be positive/
         );
+    });
+});
+
+describe("cluster colours", () => {
+    it("takes a lone marker's colour", () => {
+        const [cluster] = clusterMarkers(
+            [marker("a", 0, 0, "red")],
+            project,
+            RADIUS
+        );
+
+        expect(cluster.colour).toBe("red");
+    });
+
+    it("takes the colour its members agree on", () => {
+        const [cluster] = clusterMarkers(
+            [marker("a", 0, 0, "red"), marker("b", 0, 1, "red")],
+            project,
+            RADIUS
+        );
+
+        expect(cluster.members).toHaveLength(2);
+        expect(cluster.colour).toBe("red");
+    });
+
+    it("falls back to the default when its members disagree", () => {
+        // A single pin cannot honestly wear one group's colour when it stands
+        // for notes in two.
+        const [cluster] = clusterMarkers(
+            [marker("a", 0, 0, "red"), marker("b", 0, 1, "blue")],
+            project,
+            RADIUS
+        );
+
+        expect(cluster.colour).toBeNull();
+    });
+
+    it("falls back when only some members are coloured", () => {
+        const [cluster] = clusterMarkers(
+            [marker("a", 0, 0, "red"), marker("b", 0, 1)],
+            project,
+            RADIUS
+        );
+
+        expect(cluster.colour).toBeNull();
+    });
+
+    it("keeps colour out of the cluster id", () => {
+        // Recolouring a group must restyle the marker, not rebuild it.
+        const [plain] = clusterMarkers([marker("a", 0, 0)], project, RADIUS);
+        const [coloured] = clusterMarkers(
+            [marker("a", 0, 0, "red")],
+            project,
+            RADIUS
+        );
+
+        expect(coloured.id).toBe(plain.id);
     });
 });
