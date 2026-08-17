@@ -3,6 +3,7 @@ import { Coordinate, parseCoordinate } from "./core/coordinates";
 import { linkTarget } from "./core/links";
 import { ObsidianIO, ObsidianInterface } from "./obsidian/adapter";
 import { GeoStore } from "./obsidian/store";
+import { watchVault } from "./obsidian/watcher";
 import { FERRY_MAP_VIEW_TYPE, FerryMapView } from "./ui/view";
 import {
     DEFAULT_SETTINGS,
@@ -50,6 +51,10 @@ export default class FerryMapPlugin extends Plugin {
             (event) => this.interceptGeotagLink(event),
             { capture: true }
         );
+
+        for (const subscription of watchVault(this.app, this.store)) {
+            this.registerEvent(subscription);
+        }
 
         // The metadata cache is still filling during onload, so notes scanned
         // now come back with no links at all.

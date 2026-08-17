@@ -68,6 +68,16 @@ export class GeoIndex {
         return this.entries.get(path);
     }
 
+    /**
+     * The paths currently held, as a snapshot.
+     *
+     * Detached from the live map so a caller can rename entries while walking
+     * the result, which is what a folder rename does.
+     */
+    paths(): string[] {
+        return [...this.entries.keys()];
+    }
+
     /** Every geotag in the vault, grouped by note in insertion order. */
     tags(): GeoTag[] {
         return this.flatten((entry) => entry.tags);

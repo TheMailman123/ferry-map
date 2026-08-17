@@ -150,7 +150,7 @@ position after an Obsidian restart.
 **Done when:** every geotagged note in a test vault appears, labels are right,
 and clicking lands on the correct note and line.
 
-## M4 — Live updates
+## M4 — Live updates *(done)*
 
 `obsidian/watcher.ts`, all subscriptions wrapped in `this.registerEvent(...)`:
 
