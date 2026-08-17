@@ -67,7 +67,9 @@ export class FerryMapView extends ItemView {
         // drag or a right-click inside the panel is then never also one on the
         // map, without any Leaflet event plumbing to keep them apart.
         this.controls = new MapControls(container, {
+            app: this.app,
             state: this.plugin.settings.controls,
+            vocabulary: () => this.plugin.store.vocabulary(),
             onChange: (state) => this.applyControls(state),
         });
 

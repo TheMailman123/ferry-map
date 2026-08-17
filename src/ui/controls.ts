@@ -11,9 +11,11 @@
  * plumbing is needed to keep the two apart.
  */
 
-import { setIcon } from "obsidian";
+import { App, setIcon } from "obsidian";
 import { ColourGroup } from "../core/groups";
+import { QueryVocabulary } from "../core/suggest";
 import { ControlsState, nextGroupColour } from "./settings";
+import { QuerySuggest } from "./suggest";
 
 /**
  * How long typing must settle before the map is redrawn.
@@ -24,8 +26,15 @@ import { ControlsState, nextGroupColour } from "./settings";
 const TYPING_SETTLE_MS = 200;
 
 export interface MapControlsOptions {
+    /** Needed only to hang Obsidian's suggestion popover off the query boxes. */
+    app: App;
     /** Where the panel starts, as the last session left it. */
     state: ControlsState;
+    /**
+     * What the query boxes offer to complete to. Called afresh each time a
+     * popover opens, since notes are indexed while the panel is open.
+     */
+    vocabulary: () => QueryVocabulary;
     /**
      * Called when the filter, the groups or the panel's openness changes,
      * debounced while the user is still typing. The state is the caller's to
@@ -35,6 +44,8 @@ export interface MapControlsOptions {
 }
 
 export class MapControls {
+    private readonly app: App;
+    private readonly vocabulary: () => QueryVocabulary;
     private readonly root: HTMLElement;
     private readonly panel: HTMLElement;
     private readonly toggle: HTMLElement;
@@ -44,6 +55,8 @@ export class MapControls {
     private settleTimer: number | null = null;
 
     constructor(container: HTMLElement, options: MapControlsOptions) {
+        this.app = options.app;
+        this.vocabulary = options.vocabulary;
         this.onChange = options.onChange;
         this.state = structuredClone(options.state);
 
@@ -76,16 +89,11 @@ export class MapControls {
     private filterSection(): void {
         const body = this.section("Filters");
 
-        const search = body.createDiv({ cls: "search-input-container" });
-        const input = search.createEl("input", {
-            type: "search",
-            cls: "ferry-map-controls-query",
-            attr: {
-                placeholder: "path:, file:, tag:, -, OR",
-                spellcheck: "false",
-                "aria-label": "Filter query",
-            },
-        });
+        const input = this.queryBox(
+            body,
+            "path:, file:, tag:, -, OR",
+            "Filter query"
+        );
         input.value = this.state.filter;
 
         input.addEventListener("input", () => {
@@ -137,16 +145,7 @@ export class MapControls {
     private groupRow(group: ColourGroup, index: number): void {
         const row = this.groupList.createDiv({ cls: "ferry-map-group" });
 
-        const search = row.createDiv({ cls: "search-input-container" });
-        const query = search.createEl("input", {
-            type: "search",
-            cls: "ferry-map-controls-query",
-            attr: {
-                placeholder: "Query",
-                spellcheck: "false",
-                "aria-label": `Group ${index + 1} query`,
-            },
-        });
+        const query = this.queryBox(row, "Query", `Group ${index + 1} query`);
         query.value = group.query;
         query.addEventListener("input", () => {
             group.query = query.value;
@@ -176,6 +175,38 @@ export class MapControls {
             this.renderGroups();
             this.changed();
         });
+    }
+
+    /**
+     * A query box, with the type-ahead popover attached.
+     *
+     * Both the filter and every group query are the same widget answering the
+     * same language, so they are built in one place — including the suggester,
+     * which would otherwise be easy to add to one and forget on the other.
+     *
+     * @param parent where the box goes
+     * @param placeholder shown while the box is empty
+     * @param label the accessible name, which differs per box
+     */
+    private queryBox(
+        parent: HTMLElement,
+        placeholder: string,
+        label: string
+    ): HTMLInputElement {
+        const search = parent.createDiv({ cls: "search-input-container" });
+        const input = search.createEl("input", {
+            type: "search",
+            cls: "ferry-map-controls-query",
+            attr: {
+                placeholder,
+                spellcheck: "false",
+                "aria-label": label,
+            },
+        });
+
+        new QuerySuggest(this.app, input, this.vocabulary);
+
+        return input;
     }
 
     /**

@@ -220,12 +220,27 @@ disable Leaflet's event handling.
 Markers are recoloured with `divIcon`s carrying a CSS custom property, set on
 the pin element in place, so a group colour change restyles the marker rather
 than replacing its icon. Colour is deliberately absent from both the marker and
-cluster ids. A cluster takes its members' colour only where they agree: one pin
-standing for notes in two groups cannot honestly wear either.
+cluster ids.
 
-**Done:** the filter box hides non-matching pins and group queries colour
-matching ones. 203 tests, including a mutation pass over the parser, the group
-resolution and the marker ids.
+A cluster covering more than one group wears all of them: `colourSlices` in
+`core/clustering.ts` breaks its members down by colour, and the pin draws them
+as a `conic-gradient` ring around a plain centre. A single colour underneath is
+still drawn as a plain pin. The ring rather than a full pie is so the count
+stays readable, which it cannot be against two or three arbitrary group colours
+at once.
+
+`core/suggest.ts` and `ui/suggest.ts` — type-ahead in the query boxes, as graph
+view has. The core half finds the term the caret is in, offers the keys and
+values that could finish it, and splices the accepted one back in; the UI half
+is an `AbstractInputSuggest` so the popover behaves like every other suggester
+in the app. The vocabulary comes from the **geotagged** notes alone rather than
+the whole vault: these queries only decide which pins are drawn, so completing
+to a tag no pin carries would empty the map.
+
+**Done:** the filter box hides non-matching pins, group queries colour matching
+ones, a pin over several groups shows all of them, and both query boxes
+complete as you type. 250 tests, including mutation passes over the parser, the
+group resolution, the marker ids, the cluster slices and the completion logic.
 
 ## M7 — Problems, settings, docs
 

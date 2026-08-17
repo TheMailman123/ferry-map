@@ -11,6 +11,7 @@ import { GeoIndex } from "../core/geo_index";
 import { GeoTag, GeoTagProblem, isEmpty } from "../core/geotags";
 import { noteName } from "../core/labels";
 import { NoteDoc } from "../core/query";
+import { QueryVocabulary, buildVocabulary } from "../core/suggest";
 import type { ObsidianInterface } from "./adapter";
 import { docFromCache, extractFromCache } from "./metadata";
 
@@ -134,6 +135,18 @@ export class GeoStore {
         const doc = this.docs.get(path);
         if (!doc) throw new Error(`No note is indexed at ${path}.`);
         return doc;
+    }
+
+    /**
+     * What the query boxes can complete to, drawn from the indexed notes.
+     *
+     * Built on demand rather than kept alongside the index. It is wanted only
+     * while a suggestion popover is open, it is a scan of a few hundred small
+     * objects, and a cached copy would be one more thing to keep in step with
+     * the docs — which is exactly the desync {@link doc} is loud about.
+     */
+    vocabulary(): QueryVocabulary {
+        return buildVocabulary(this.docs.values());
     }
 
     /** Subscribe to changes. Returns the unsubscribe function. */

@@ -375,6 +375,54 @@ describe("GeoStore.doc", () => {
     });
 });
 
+describe("GeoStore.vocabulary", () => {
+    it("is empty for an empty vault", () => {
+        const { store } = setup();
+        store.scanVault();
+
+        expect(store.vocabulary()).toEqual({
+            tags: [],
+            folders: [],
+            files: [],
+        });
+    });
+
+    it("collects what the indexed notes offer", () => {
+        const { vault, store } = setup();
+        vault.putTagged("TRIPS/Skye.md", ["#trip"], "57.3, -6.2");
+        store.scanVault();
+
+        expect(store.vocabulary()).toEqual({
+            tags: ["trip"],
+            folders: ["TRIPS"],
+            files: ["Skye"],
+        });
+    });
+
+    it("ignores notes with no geotags", () => {
+        // Completing to a tag no pin carries would empty the map, which is the
+        // opposite of what reaching for a suggestion is for.
+        const { vault, store } = setup();
+        vault.putTagged("TRIPS/Skye.md", ["#trip"], "57.3, -6.2");
+        vault.putTagged("ADMIN/Taxes.md", ["#boring"]);
+        store.scanVault();
+
+        expect(store.vocabulary().tags).toEqual(["trip"]);
+        expect(store.vocabulary().folders).toEqual(["TRIPS"]);
+    });
+
+    it("follows a note out of the index", () => {
+        const { vault, store } = setup();
+        vault.putTagged("a.md", ["#trip"], "57.3, -6.2");
+        store.scanVault();
+
+        vault.put("a.md");
+        store.updateNote(asFile("a.md"));
+
+        expect(store.vocabulary().tags).toEqual([]);
+    });
+});
+
 describe("GeoStore notifications", () => {
     it("tells listeners once the scheduled work runs", () => {
         const { vault, clock, store } = setup();
