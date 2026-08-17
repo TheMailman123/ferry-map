@@ -1,6 +1,10 @@
 import { ItemView, Menu, Notice, WorkspaceLeaf } from "obsidian";
 import { Cluster } from "../core/clustering";
-import { Coordinate } from "../core/coordinates";
+import {
+    Coordinate,
+    formatCoordinate,
+    formatGeotag,
+} from "../core/coordinates";
 import { GeoTag } from "../core/geotags";
 import { MapMarker, buildMarkers } from "../core/markers";
 import type FerryMapPlugin from "../main";
@@ -51,6 +55,8 @@ export class FerryMapView extends ItemView {
             initial: this.plugin.settings.view,
             onViewChange: (view) => this.rememberView(view),
             onSelect: (cluster, event) => this.selectPin(cluster, event),
+            onContextMenu: (coordinate, event) =>
+                this.showCopyMenu(coordinate, event),
         });
 
         // Subscribing before the first draw matters: the view can be restored
@@ -120,6 +126,45 @@ export class FerryMapView extends ItemView {
         }
 
         menu.showAtMouseEvent(event);
+    }
+
+    /**
+     * Offer to put the clicked point on the clipboard.
+     *
+     * The clipboard is the only bridge from map to note: the plugin never
+     * writes to a file, so authoring a geotag stays an explicit paste.
+     */
+    private showCopyMenu(coordinate: Coordinate, event: MouseEvent): void {
+        const menu = new Menu();
+
+        menu.addItem((item) =>
+            item
+                .setTitle("Copy geotag")
+                .setIcon("link")
+                .onClick(() => this.copy(formatGeotag(coordinate)))
+        );
+
+        menu.addItem((item) =>
+            item
+                .setTitle("Copy coordinates")
+                .setIcon("clipboard-copy")
+                .onClick(() => this.copy(formatCoordinate(coordinate)))
+        );
+
+        menu.showAtMouseEvent(event);
+    }
+
+    private copy(text: string): void {
+        navigator.clipboard.writeText(text).then(
+            // Echo what was copied, so it is obvious the precision is limited.
+            () => {
+                new Notice(`Copied ${text}`);
+            },
+            (error: Error) => {
+                new Notice(`Could not copy: ${error.message}`);
+                console.error(error);
+            }
+        );
     }
 
     private openNote(tag: GeoTag): void {

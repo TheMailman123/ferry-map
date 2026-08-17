@@ -167,7 +167,7 @@ fast-typing edit does not thrash the map.
 **Done when:** adding, editing, renaming and deleting a geotag in an open vault
 moves/adds/removes its pin without reopening the tab.
 
-## M5 — Copy geotag
+## M5 — Copy geotag *(done)*
 
 Right-click on the map surface opens an Obsidian `Menu` at the pointer with
 "Copy geotag" (`[[lat, lon]]`, 4 decimal places) and "Copy coordinates"

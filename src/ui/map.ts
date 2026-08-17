@@ -46,6 +46,8 @@ export interface MapSurfaceOptions {
      * question rather than a map one.
      */
     onSelect: (cluster: Cluster, event: MouseEvent) => void;
+    /** Called on a right-click, with the point under the pointer. */
+    onContextMenu: (coordinate: Coordinate, event: MouseEvent) => void;
 }
 
 export class MapSurface {
@@ -53,6 +55,10 @@ export class MapSurface {
     private readonly layers: Record<BaseLayerId, L.TileLayer>;
     private readonly onViewChange: (view: SavedMapView) => void;
     private readonly onSelect: (cluster: Cluster, event: MouseEvent) => void;
+    private readonly onContextMenu: (
+        coordinate: Coordinate,
+        event: MouseEvent
+    ) => void;
     private readonly pins: L.LayerGroup;
     /** Drawn clusters, by cluster id. */
     private readonly markers = new Map<string, L.Marker>();
@@ -63,6 +69,7 @@ export class MapSurface {
     constructor(container: HTMLElement, options: MapSurfaceOptions) {
         this.onViewChange = options.onViewChange;
         this.onSelect = options.onSelect;
+        this.onContextMenu = options.onContextMenu;
         this.activeLayer = options.initial.layer;
 
         this.layers = {
@@ -99,6 +106,12 @@ export class MapSurface {
         // Which pins overlap depends on zoom alone: projected positions scale
         // together, so panning cannot change what clusters with what.
         this.map.on("zoomend", () => this.drawPins());
+
+        this.map.on("contextmenu", (event: L.LeafletMouseEvent) => {
+            // Otherwise Obsidian's own context menu opens on top of ours.
+            event.originalEvent.preventDefault();
+            this.onContextMenu(normalise(event.latlng), event.originalEvent);
+        });
 
         // Leaflet measures its container on construction. In an Obsidian leaf
         // that has not been laid out yet the container is zero-sized, which
@@ -189,21 +202,10 @@ export class MapSurface {
 
     /** The current view, normalised into ranges the coordinate parser accepts. */
     view(): SavedMapView {
-        const centre = this.map.getCenter();
         return {
-            lat: clampLatitude(centre.lat),
-            lon: normaliseLongitude(centre.lng),
+            ...normalise(this.map.getCenter()),
             zoom: this.map.getZoom(),
             layer: this.activeLayer,
-        };
-    }
-
-    /** The point under a mouse event, normalised. Used by the copy menu. */
-    coordinateAt(event: MouseEvent): Coordinate {
-        const point = this.map.mouseEventToLatLng(event);
-        return {
-            lat: clampLatitude(point.lat),
-            lon: normaliseLongitude(point.lng),
         };
     }
 
@@ -332,6 +334,20 @@ function tooltipContent(cluster: Cluster): HTMLElement {
     if (hidden > 0) list.createDiv().setText(`and ${hidden} more`);
 
     return el;
+}
+
+/**
+ * A Leaflet position as a coordinate the rest of the plugin will accept.
+ *
+ * Leaflet reports longitudes beyond ±180 once the map has been panned across
+ * the antimeridian, and those describe real places but are not coordinates this
+ * plugin would read back, so nothing leaves this module un-normalised.
+ */
+function normalise(point: L.LatLng): Coordinate {
+    return {
+        lat: clampLatitude(point.lat),
+        lon: normaliseLongitude(point.lng),
+    };
 }
 
 function tileLayer(settings: TileLayerSettings): L.TileLayer {
