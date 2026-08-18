@@ -13,6 +13,7 @@
 
 import { App, setIcon } from "obsidian";
 import { ColourGroup } from "../core/groups";
+import { ProblemGroup, problemLocation } from "../core/problems";
 import { QueryVocabulary } from "../core/suggest";
 import { ControlsState, nextGroupColour } from "./settings";
 import { QuerySuggest } from "./suggest";
@@ -41,6 +42,16 @@ export interface MapControlsOptions {
      * keep: it is a fresh copy each time, not the panel's own.
      */
     onChange: (state: ControlsState) => void;
+    /** Called to reveal the note a listed problem came from. */
+    onOpenProblem: (path: string, line: number | null) => void;
+}
+
+/** A section of the panel, in the pieces its owner needs to reach. */
+interface Section {
+    root: HTMLElement;
+    /** The section's title, which the problems count is appended to. */
+    label: HTMLElement;
+    body: HTMLElement;
 }
 
 export class MapControls {
@@ -50,7 +61,12 @@ export class MapControls {
     private readonly panel: HTMLElement;
     private readonly toggle: HTMLElement;
     private readonly groupList: HTMLElement;
+    /** Badge on the toggle, so a problem is visible with the panel shut. */
+    private readonly badge: HTMLElement;
+    private readonly problems: Section;
+    private readonly problemList: HTMLElement;
     private readonly onChange: (state: ControlsState) => void;
+    private readonly onOpenProblem: (path: string, line: number | null) => void;
     private readonly state: ControlsState;
     private settleTimer: number | null = null;
 
@@ -58,6 +74,7 @@ export class MapControls {
         this.app = options.app;
         this.vocabulary = options.vocabulary;
         this.onChange = options.onChange;
+        this.onOpenProblem = options.onOpenProblem;
         this.state = structuredClone(options.state);
 
         this.root = container.createDiv({ cls: "ferry-map-controls" });
@@ -67,6 +84,10 @@ export class MapControls {
             attr: { "aria-label": "Filters and groups", type: "button" },
         });
         setIcon(this.toggle, "settings");
+        // Added after setIcon, which replaces the button's contents.
+        this.badge = this.toggle.createSpan({
+            cls: "ferry-map-controls-badge",
+        });
         this.toggle.addEventListener("click", () =>
             this.setOpen(!this.state.open)
         );
@@ -75,8 +96,11 @@ export class MapControls {
 
         this.filterSection();
         this.groupList = this.groupSection();
+        this.problems = this.section("Problems");
+        this.problemList = this.problems.body;
 
         this.renderGroups();
+        this.setProblems([]);
         this.showPanel();
     }
 
@@ -87,7 +111,7 @@ export class MapControls {
 
     /** The filter query, as one search box. */
     private filterSection(): void {
-        const body = this.section("Filters");
+        const { body } = this.section("Filters");
 
         const input = this.queryBox(
             body,
@@ -104,7 +128,7 @@ export class MapControls {
 
     /** The ordered group list, and the button that adds to it. */
     private groupSection(): HTMLElement {
-        const body = this.section("Groups");
+        const { body } = this.section("Groups");
         const list = body.createDiv({ cls: "ferry-map-groups" });
 
         const add = body.createEl("button", {
@@ -178,6 +202,76 @@ export class MapControls {
     }
 
     /**
+     * Show the geotags the index could not read.
+     *
+     * The section disappears entirely when there is nothing wrong, rather than
+     * standing empty: a permanent "Problems" heading trains the eye to skip it,
+     * which is the one thing it must not do.
+     *
+     * The count is also put on the panel's toggle, because the panel is closed
+     * by default and a problem nobody opens the panel to find is no better
+     * surfaced than it was before.
+     *
+     * @param groups the problems, gathered by note. Empty hides the section.
+     */
+    setProblems(groups: readonly ProblemGroup[]): void {
+        const total = groups.reduce(
+            (count, group) => count + group.problems.length,
+            0
+        );
+
+        this.problems.root.toggleClass("is-hidden", total === 0);
+        this.problems.label.setText(
+            total === 0 ? "Problems" : `Problems (${total})`
+        );
+
+        this.badge.toggleClass("is-hidden", total === 0);
+        this.badge.setText(String(total));
+        this.toggle.setAttribute(
+            "aria-label",
+            total === 0
+                ? "Filters and groups"
+                : `Filters and groups — ${total} unreadable ${
+                      total === 1 ? "geotag" : "geotags"
+                  }`
+        );
+
+        this.problemList.empty();
+        for (const group of groups) this.problemGroup(group);
+    }
+
+    /** One note's block: its name, then a row per unreadable geotag. */
+    private problemGroup(group: ProblemGroup): void {
+        const block = this.problemList.createDiv({
+            cls: "ferry-map-problem-note",
+        });
+
+        // Note names, raw link targets and reasons are all arbitrary user text,
+        // so every one of these is set as text and never parsed as markup.
+        block
+            .createDiv({ cls: "ferry-map-problem-note-name" })
+            .setText(group.noteName);
+
+        for (const problem of group.problems) {
+            const row = block.createEl("button", {
+                cls: "ferry-map-problem",
+                attr: { type: "button" },
+            });
+
+            row.createDiv({ cls: "ferry-map-problem-raw" }).setText(
+                problem.raw
+            );
+            row.createDiv({ cls: "ferry-map-problem-reason" }).setText(
+                `${problem.reason} — ${problemLocation(problem)}`
+            );
+
+            row.addEventListener("click", () =>
+                this.onOpenProblem(group.path, problem.line)
+            );
+        }
+    }
+
+    /**
      * A query box, with the type-ahead popover attached.
      *
      * Both the filter and every group query are the same widget answering the
@@ -216,28 +310,29 @@ export class MapControls {
      * and writing settings for it would put a disk write behind a disclosure
      * triangle.
      *
-     * @returns the section's body, for the caller to fill
+     * @returns the section's parts: the root to hide it by, the label to
+     *   retitle it by, and the body for the caller to fill
      */
-    private section(title: string): HTMLElement {
-        const section = this.panel.createDiv({ cls: "ferry-map-section" });
+    private section(title: string): Section {
+        const root = this.panel.createDiv({ cls: "ferry-map-section" });
 
-        const header = section.createEl("button", {
+        const header = root.createEl("button", {
             cls: "ferry-map-section-header",
             attr: { type: "button", "aria-expanded": "true" },
         });
         const chevron = header.createSpan({ cls: "ferry-map-section-chevron" });
         setIcon(chevron, "chevron-down");
-        header.createSpan({ text: title });
+        const label = header.createSpan({ text: title });
 
-        const body = section.createDiv({ cls: "ferry-map-section-body" });
+        const body = root.createDiv({ cls: "ferry-map-section-body" });
 
         header.addEventListener("click", () => {
-            const open = section.hasClass("is-collapsed");
-            section.toggleClass("is-collapsed", !open);
+            const open = root.hasClass("is-collapsed");
+            root.toggleClass("is-collapsed", !open);
             header.setAttribute("aria-expanded", String(open));
         });
 
-        return body;
+        return { root, label, body };
     }
 
     private setOpen(open: boolean): void {

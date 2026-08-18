@@ -301,3 +301,75 @@
     color: var(--text-faint);
     font-size: var(--font-ui-smaller);
 }
+
+/* Hidden rather than removed, so the section keeps its place in the panel and
+   reappears where it was rather than shifting the sections above it. */
+.ferry-map-section.is-hidden,
+.ferry-map-controls-badge.is-hidden {
+    display: none;
+}
+
+/* The count of unreadable geotags, on the panel's own button. The panel is
+   closed by default, and a problem nobody opens the panel to find is no better
+   surfaced than it was before. */
+.ferry-map-controls-toggle {
+    position: relative;
+}
+
+.ferry-map-controls-badge {
+    position: absolute;
+    top: -4px;
+    right: -4px;
+    min-width: 15px;
+    padding: 0 3px;
+    border-radius: 8px;
+    background-color: var(--text-error);
+    color: var(--text-on-accent);
+    font-size: 9px;
+    font-weight: var(--font-bold);
+    line-height: 15px;
+    text-align: center;
+}
+
+.ferry-map-problem-note + .ferry-map-problem-note {
+    margin-top: var(--size-4-2);
+}
+
+.ferry-map-problem-note-name {
+    color: var(--text-muted);
+    font-size: var(--font-ui-smaller);
+    font-weight: var(--font-medium);
+    margin-bottom: var(--size-2-1);
+}
+
+/* A button, not a div: each row navigates to the offending line, so it should
+   be reachable and activatable from the keyboard like any other control. */
+.ferry-map-problem {
+    display: block;
+    width: 100%;
+    padding: var(--size-2-2) var(--size-4-1);
+    border: none;
+    border-radius: var(--radius-s);
+    background: transparent;
+    box-shadow: none;
+    text-align: left;
+    cursor: pointer;
+}
+
+.ferry-map-problem:hover {
+    background-color: var(--background-modifier-hover);
+}
+
+/* The raw text is whatever the user wrote, so it may be long and may have no
+   spaces to break at. */
+.ferry-map-problem-raw {
+    color: var(--text-normal);
+    font-family: var(--font-monospace);
+    font-size: var(--font-ui-smaller);
+    overflow-wrap: anywhere;
+}
+
+.ferry-map-problem-reason {
+    color: var(--text-faint);
+    font-size: var(--font-ui-smaller);
+}

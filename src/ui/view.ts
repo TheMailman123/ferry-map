@@ -8,6 +8,7 @@ import {
 import { GeoTag } from "../core/geotags";
 import { compileGroups, noteStyler } from "../core/groups";
 import { MapMarker, buildMarkers } from "../core/markers";
+import { groupProblems } from "../core/problems";
 import { parseQuery } from "../core/query";
 import type FerryMapPlugin from "../main";
 import { MapControls } from "./controls";
@@ -71,13 +72,14 @@ export class FerryMapView extends ItemView {
             state: this.plugin.settings.controls,
             vocabulary: () => this.plugin.store.vocabulary(),
             onChange: (state) => this.applyControls(state),
+            onOpenProblem: (path, line) => this.openPath(path, line),
         });
 
         // Subscribing before the first draw matters: the view can be restored
         // at startup before the vault scan has run, and would otherwise sit
         // empty until something else happened to change.
-        this.unsubscribe = this.plugin.store.onChange(() => this.drawMarkers());
-        this.drawMarkers();
+        this.unsubscribe = this.plugin.store.onChange(() => this.refresh());
+        this.refresh();
     }
 
     onResize(): void {
@@ -97,6 +99,18 @@ export class FerryMapView extends ItemView {
         this.surface?.destroy();
         this.surface = null;
         this.containerEl.children[1].empty();
+    }
+
+    /**
+     * Take on everything the index currently holds.
+     *
+     * Separate from {@link drawMarkers} because the two have different
+     * triggers: the pins are redrawn on every settled keystroke in the filter
+     * box, while the problems change only when a note does.
+     */
+    private refresh(): void {
+        this.drawMarkers();
+        this.controls?.setProblems(groupProblems(this.plugin.store.problems()));
     }
 
     /**
@@ -215,14 +229,17 @@ export class FerryMapView extends ItemView {
     }
 
     private openNote(tag: GeoTag): void {
-        this.plugin.obsidian
-            .openNote(tag.path, tag.line)
-            .catch((error: Error) => {
-                // Surfaced rather than swallowed: a pin that silently does nothing
-                // when clicked is worse than one that says why.
-                new Notice(error.message);
-                console.error(error);
-            });
+        this.openPath(tag.path, tag.line);
+    }
+
+    /** Reveal a note, reporting rather than swallowing a failure to do so. */
+    private openPath(path: string, line: number | null): void {
+        this.plugin.obsidian.openNote(path, line).catch((error: Error) => {
+            // Surfaced rather than swallowed: a pin that silently does nothing
+            // when clicked is worse than one that says why.
+            new Notice(error.message);
+            console.error(error);
+        });
     }
 
     private rememberView(view: SavedMapView): void {
