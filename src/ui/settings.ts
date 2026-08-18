@@ -1,4 +1,5 @@
 import { App, PluginSettingTab, Setting } from "obsidian";
+import { DEFAULT_PRECISION, formatCoordinate } from "../core/coordinates";
 import { ColourGroup } from "../core/groups";
 import type FerryMapPlugin from "../main";
 
@@ -38,9 +39,38 @@ export interface FerryMapSettings {
     /** Schema version, so stored settings can be migrated across releases. */
     version: number;
     tiles: Record<BaseLayerId, TileLayerSettings>;
+    /** Where the map was left. Restored when it reopens. */
     view: SavedMapView;
+    /**
+     * Where "Go to default view" returns the map to.
+     *
+     * Separate from {@link view}, which is overwritten by every pan: a home to
+     * come back to is no use if wandering away from it moves it too.
+     */
+    home: SavedMapView;
+    /** Decimal places used when a coordinate is copied. */
+    precision: number;
+    /** Diameter of an ordinary pin, in pixels. */
+    markerSize: number;
     controls: ControlsState;
 }
+
+/** Widest a pin may be set. Beyond this pins hide the map behind them. */
+export const MAX_MARKER_SIZE = 40;
+
+/** Narrowest a pin may be set, below which it is hard to hit with a pointer. */
+export const MIN_MARKER_SIZE = 10;
+
+/** The pin size the map has always used, and the default. */
+export const DEFAULT_MARKER_SIZE = 18;
+
+/**
+ * Most decimal places a copied coordinate may carry.
+ *
+ * Eight places is under a millimetre. More would be writing noise into notes
+ * and implying a precision no map click has.
+ */
+export const MAX_PRECISION = 8;
 
 /**
  * Colours offered to successive new groups.
@@ -83,6 +113,9 @@ export const DEFAULT_SETTINGS: FerryMapSettings = {
         },
     },
     view: { lat: 20, lon: 0, zoom: 2, layer: "map" },
+    home: { lat: 20, lon: 0, zoom: 2, layer: "map" },
+    precision: DEFAULT_PRECISION,
+    markerSize: DEFAULT_MARKER_SIZE,
     controls: { filter: "", groups: [], open: false },
 };
 
@@ -121,6 +154,93 @@ export class FerryMapSettingTab extends PluginSettingTab {
                     await this.plugin.saveSettings();
                     this.display();
                 })
+            );
+
+        containerEl.createEl("h2", { text: "Map" });
+
+        this.defaultViewSetting();
+        this.markerSizeSetting();
+
+        containerEl.createEl("h2", { text: "Copying" });
+
+        this.precisionSetting();
+    }
+
+    /**
+     * The view "Go to default view" returns to.
+     *
+     * Captured from the map rather than typed, because nobody knows their
+     * preferred zoom as a number, and a latitude typed by hand is a way to end
+     * up somewhere in the Atlantic.
+     */
+    private defaultViewSetting(): void {
+        const { home } = this.plugin.settings;
+
+        new Setting(this.containerEl)
+            .setName("Default view")
+            .setDesc(
+                `${formatCoordinate(home, 2)} at zoom ${home.zoom}, on the ` +
+                    `${this.plugin.settings.tiles[home.layer].name} layer. ` +
+                    "The \u201cGo to default view\u201d command returns here."
+            )
+            .addButton((button) =>
+                button
+                    .setButtonText("Use current map view")
+                    .onClick(async () => {
+                        this.plugin.settings.home = {
+                            ...this.plugin.currentView(),
+                        };
+                        await this.plugin.saveSettings();
+                        // Redrawn so the description above shows what was captured;
+                        // a button that reports nothing gives no way to tell it
+                        // worked.
+                        this.display();
+                    })
+            );
+    }
+
+    private markerSizeSetting(): void {
+        new Setting(this.containerEl)
+            .setName("Marker size")
+            .setDesc(
+                "Diameter of a pin in pixels. Clustered pins scale with it."
+            )
+            .addSlider((slider) =>
+                slider
+                    .setLimits(MIN_MARKER_SIZE, MAX_MARKER_SIZE, 1)
+                    .setValue(this.plugin.settings.markerSize)
+                    .setDynamicTooltip()
+                    .onChange(async (value) => {
+                        this.plugin.settings.markerSize = value;
+                        await this.plugin.saveSettings();
+                        this.plugin.applySettings();
+                    })
+            );
+    }
+
+    /**
+     * How precise a copied coordinate is.
+     *
+     * A slider rather than a text box: the value has to be a whole number in a
+     * narrow range, and a control that cannot express anything else is better
+     * than one that validates after the fact.
+     */
+    private precisionSetting(): void {
+        new Setting(this.containerEl)
+            .setName("Coordinate precision")
+            .setDesc(
+                "Decimal places used by \u201cCopy geotag\u201d and " +
+                    "\u201cCopy coordinates\u201d. Four places is about 11 m."
+            )
+            .addSlider((slider) =>
+                slider
+                    .setLimits(0, MAX_PRECISION, 1)
+                    .setValue(this.plugin.settings.precision)
+                    .setDynamicTooltip()
+                    .onChange(async (value) => {
+                        this.plugin.settings.precision = value;
+                        await this.plugin.saveSettings();
+                    })
             );
     }
 

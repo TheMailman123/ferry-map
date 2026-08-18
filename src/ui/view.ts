@@ -58,6 +58,7 @@ export class FerryMapView extends ItemView {
         this.surface = new MapSurface(surfaceEl, {
             tiles: this.plugin.settings.tiles,
             initial: this.plugin.settings.view,
+            markerSize: this.plugin.settings.markerSize,
             onViewChange: (view) => this.rememberView(view),
             onSelect: (cluster, event) => this.selectPin(cluster, event),
             onContextMenu: (coordinate, event) =>
@@ -151,6 +152,26 @@ export class FerryMapView extends ItemView {
         this.surface?.focus(coordinate);
     }
 
+    /** Return the map to the view saved as the default. */
+    goHome(): void {
+        this.surface?.showView(this.plugin.settings.home);
+    }
+
+    /**
+     * Where the map is now, or null if it has not been built yet.
+     *
+     * Read by the settings tab when capturing a default view. Taken live rather
+     * than from the saved settings, which lag a pan by half a second.
+     */
+    currentView(): SavedMapView | null {
+        return this.surface?.view() ?? null;
+    }
+
+    /** Take on settings changed from the settings tab while the map is open. */
+    applySettings(): void {
+        this.surface?.setMarkerSize(this.plugin.settings.markerSize);
+    }
+
     /**
      * Handle a click on a pin.
      *
@@ -202,14 +223,25 @@ export class FerryMapView extends ItemView {
             item
                 .setTitle("Copy geotag")
                 .setIcon("link")
-                .onClick(() => this.copy(formatGeotag(coordinate)))
+                .onClick(() =>
+                    this.copy(
+                        formatGeotag(coordinate, this.plugin.settings.precision)
+                    )
+                )
         );
 
         menu.addItem((item) =>
             item
                 .setTitle("Copy coordinates")
                 .setIcon("clipboard-copy")
-                .onClick(() => this.copy(formatCoordinate(coordinate)))
+                .onClick(() =>
+                    this.copy(
+                        formatCoordinate(
+                            coordinate,
+                            this.plugin.settings.precision
+                        )
+                    )
+                )
         );
 
         menu.showAtMouseEvent(event);

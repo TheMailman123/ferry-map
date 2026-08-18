@@ -9,6 +9,7 @@ import {
     DEFAULT_SETTINGS,
     FerryMapSettingTab,
     FerryMapSettings,
+    SavedMapView,
 } from "./ui/settings";
 
 /**
@@ -39,6 +40,12 @@ export default class FerryMapPlugin extends Plugin {
             id: "open-ferry-map-view",
             name: "Open Ferry Map",
             callback: () => this.activateView(),
+        });
+
+        this.addCommand({
+            id: "ferry-map-default-view",
+            name: "Go to default view",
+            callback: () => void this.goHome(),
         });
 
         this.addSettingTab(new FerryMapSettingTab(this.app, this));
@@ -94,6 +101,36 @@ export default class FerryMapPlugin extends Plugin {
 
     async saveSettings(): Promise<void> {
         await this.saveData(this.settings);
+    }
+
+    /**
+     * The map's current position, for the settings tab to capture as a default.
+     *
+     * Falls back to the last saved view when no map is open, which is the same
+     * place a map would open at, so the answer is never a surprise.
+     */
+    currentView(): SavedMapView {
+        return this.mapView()?.currentView() ?? this.settings.view;
+    }
+
+    /**
+     * Push changed settings into every open map view.
+     *
+     * Called by the settings tab, which can be open beside the map. Without
+     * this a change would appear to do nothing until the map was reopened.
+     */
+    applySettings(): void {
+        for (const leaf of this.app.workspace.getLeavesOfType(
+            FERRY_MAP_VIEW_TYPE
+        )) {
+            if (leaf.view instanceof FerryMapView) leaf.view.applySettings();
+        }
+    }
+
+    /** Open the map if needed, and return it to its default view. */
+    private async goHome(): Promise<void> {
+        const view = await this.activateView();
+        view?.goHome();
     }
 
     /**

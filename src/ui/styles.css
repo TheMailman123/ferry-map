@@ -70,7 +70,9 @@
     align-items: center;
     justify-content: center;
     color: var(--text-on-accent);
-    font-size: var(--font-smallest);
+    /* Proportional to the pin, which the marker-size setting scales, rather
+       than a fixed size that overflows a small pin. */
+    font-size: calc(var(--ferry-map-marker-size, 26px) * 0.42);
     font-weight: var(--font-bold);
     line-height: 1;
 }
@@ -88,7 +90,9 @@
 .ferry-map-pin.is-mixed::before {
     content: "";
     position: absolute;
-    inset: 5px;
+    /* A proportion rather than a pixel width, so the ring stays a ring at
+       every marker size the settings tab allows. */
+    inset: 19%;
     border-radius: 50%;
     background-color: var(--background-primary);
 }

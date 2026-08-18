@@ -23,10 +23,13 @@ export type { MapMarker };
 const FOCUS_ZOOM = 13;
 
 /**
- * How close two pins must be, in pixels, before they are drawn as one with a
- * count. A shade wider than a pin, so pins that visibly touch are merged.
+ * How much wider a clustered pin is than a lone one, so a count fits inside it.
+ *
+ * The same figure sets the clustering radius: two pins are merged once they are
+ * closer than the width of the pin that would replace them, which is the point
+ * at which they visibly touch.
  */
-const CLUSTER_RADIUS_PX = 26;
+const CLUSTER_SCALE = 26 / 18;
 
 /** Zoom levels gained by clicking a cluster. */
 const CLUSTER_ZOOM_STEP = 2;
@@ -42,6 +45,15 @@ const MIXED_CLASS = "is-mixed";
 
 /** Custom property the stylesheet reads a group's colour from. */
 const MARKER_COLOUR_PROPERTY = "--ferry-map-marker-colour";
+
+/**
+ * Custom property carrying the pin's drawn diameter.
+ *
+ * The stylesheet sizes the count off it, so a pin scaled by the marker-size
+ * setting keeps its proportions instead of holding a fixed-size number that
+ * overflows a small pin and rattles around a large one.
+ */
+const MARKER_SIZE_PROPERTY = "--ferry-map-marker-size";
 
 /**
  * Custom property the stylesheet reads a mixed pin's segments from: the stop
@@ -61,6 +73,8 @@ export interface MapSurfaceOptions {
     tiles: Record<BaseLayerId, TileLayerSettings>;
     /** Where to open. Restored from settings. */
     initial: SavedMapView;
+    /** Diameter of a lone pin, in pixels. */
+    markerSize: number;
     /** Called when the user pans, zooms, or switches base layer. */
     onViewChange: (view: SavedMapView) => void;
     /**
@@ -88,12 +102,14 @@ export class MapSurface {
     /** The markers to draw, before clustering for the current zoom. */
     private pending: MapMarker[] = [];
     private activeLayer: BaseLayerId;
+    private markerSize: number;
 
     constructor(container: HTMLElement, options: MapSurfaceOptions) {
         this.onViewChange = options.onViewChange;
         this.onSelect = options.onSelect;
         this.onContextMenu = options.onContextMenu;
         this.activeLayer = options.initial.layer;
+        this.markerSize = options.markerSize;
 
         this.layers = {
             map: tileLayer(options.tiles.map),
@@ -163,7 +179,7 @@ export class MapSurface {
                     [coordinate.lat, coordinate.lon],
                     this.map.getZoom()
                 ),
-            CLUSTER_RADIUS_PX
+            this.markerSize * CLUSTER_SCALE
         );
 
         const wanted = new Map(
@@ -190,6 +206,40 @@ export class MapSurface {
     /** Re-measure after the containing leaf changes size. */
     resize(): void {
         this.map.invalidateSize();
+    }
+
+    /**
+     * Redraw every pin at a new size.
+     *
+     * Unlike a recolour this cannot be done in place — the icon carries the
+     * size, and Leaflet anchors the element by it — so the pins are torn down
+     * and rebuilt. That is a visible flicker, but this runs only when the
+     * slider in the settings tab moves, not while the map is in use.
+     */
+    setMarkerSize(size: number): void {
+        if (size === this.markerSize) return;
+
+        this.markerSize = size;
+        for (const marker of this.markers.values()) marker.remove();
+        this.markers.clear();
+        this.drawPins();
+    }
+
+    /**
+     * Jump to a stored view, base layer included.
+     *
+     * Used by "Go to default view". The layer is swapped through the map rather
+     * than the layers control, which notices the add and updates its own radio
+     * buttons.
+     */
+    showView(view: SavedMapView): void {
+        if (view.layer !== this.activeLayer) {
+            this.map.removeLayer(this.layers[this.activeLayer]);
+            this.map.addLayer(this.layers[view.layer]);
+            this.activeLayer = view.layer;
+        }
+
+        this.map.setView([view.lat, view.lon], view.zoom);
     }
 
     /** Whether there is any zoom left to gain. */
@@ -246,7 +296,7 @@ export class MapSurface {
         const created = L.marker(
             [cluster.coordinate.lat, cluster.coordinate.lon],
             {
-                icon: pinIcon(cluster),
+                icon: pinIcon(cluster, this.markerSize),
                 title: label,
                 keyboard: true,
                 alt: label,
@@ -300,12 +350,15 @@ export class MapSurface {
  * images from a runtime script path that does not exist inside Obsidian, and a
  * div can be recoloured from CSS, which is what the colour groups need.
  */
-function pinIcon(cluster: Cluster): L.DivIcon {
+function pinIcon(cluster: Cluster, markerSize: number): L.DivIcon {
     const count = cluster.members.length;
-    const size = count > 1 ? 26 : 18;
+    const size = Math.round(
+        count > 1 ? markerSize * CLUSTER_SCALE : markerSize
+    );
 
     const el = document.createElement("div");
     el.addClass(PIN_CLASS);
+    el.style.setProperty(MARKER_SIZE_PROPERTY, `${size}px`);
     if (count > 1) {
         el.addClass("ferry-map-pin-cluster");
         // The count is its own element rather than a bare text node so a mixed
