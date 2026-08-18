@@ -242,20 +242,40 @@ ones, a pin over several groups shows all of them, and both query boxes
 complete as you type. 250 tests, including mutation passes over the parser, the
 group resolution, the marker ids, the cluster slices and the completion logic.
 
-## M7 — Problems, settings, docs
+## M7 — Problems, settings, docs *(done)*
 
-- `ui/problems.ts`: a dismissible banner when the index holds problems —
-  "3 geotags could not be read" — expanding to a list of note, raw text and
-  reason, each clickable through to the offending line.
-- Settings tab: tile URLs and attribution for both layers, copy precision,
-  default centre/zoom, marker size.
-- README: syntax, the unresolved-link consequence, the third-party tile
-  services, and the deploy loop.
-- Optionally add `.github/workflows/check.yml` (lint + compile + test) mirroring
-  the reference project, once there is enough to protect.
+`core/problems.ts` — the ordering rules, gathered by note: notes by name with
+the path as tie-break, and within a note properties before body lines, so the
+list reads in the same order as the vault and the file.
 
-**Done when:** a vault containing a deliberately broken geotag surfaces it
-rather than silently omitting the pin.
+The list itself became a **third section of the control panel** rather than the
+banner sketched here. The panel did not exist when this was written; once it
+did, a section cost nothing and a banner would have been a second floating
+thing over the map. The section is absent rather than empty when there is
+nothing wrong — a standing "Problems" heading trains the eye to skip it — and
+the count is repeated as a badge on the panel's toggle, since the panel is
+closed by default.
+
+Settings tab: tile URLs and attribution for both layers, plus copy precision
+and marker size as sliders, and a default view.
+
+**Default view** is stored apart from the remembered view. The map has always
+reopened where it was left, so a "default" consulted only on first ever open
+would have been vestigial; a *home* to return to is worth having, so it is
+captured from the map by a button and reached by a "Go to default view"
+command. Marker size reaches an open map immediately, since the settings tab
+can sit beside it; the tile settings still need the view reopened.
+
+README: the syntax in body and properties, what makes a link geotag-shaped, the
+query language, the unresolved-link consequence, and the third-party tile
+services.
+
+`.github/workflows/check.yml` was **not** added: this repo has no remote, so a
+workflow would never run. Worth adding the day it is pushed anywhere.
+
+**Done:** the six broken geotags in `MAP_TEST/Malformed geotags.md` are listed
+in the panel and each navigates to its line. 263 tests, including a mutation
+pass over the problem ordering.
 
 ---
 

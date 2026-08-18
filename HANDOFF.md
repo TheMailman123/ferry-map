@@ -1,89 +1,101 @@
-# Handoff — M7: problems, settings, docs
+# Handoff — v1 is built; what is left is judgement
 
-Brief for whoever picks up M7. [VISION.md](VISION.md) is the what,
+Brief for whoever picks this up next. [VISION.md](VISION.md) is the what,
 [PLANNING.md](PLANNING.md) is the how; this file records the state of play and
 the things you would otherwise have to rediscover.
 
-**Read `PLANNING.md` § "M7 — Problems, settings, docs" first.** Everything
-below assumes it.
-
 ## Where things stand
 
-M0–M6 are done. M7 is all that remains of v1.
+**M0–M7 are done. Everything PLANNING.md scoped for v1 is built.** 263 tests;
+`npm test`, `npm run build` and `npm run lint` all clean.
 
-M6 landed the filter box and colour groups: `core/query.ts` (parser and
-matcher), `core/groups.ts` (colour resolution and the per-note style),
-`ui/controls.ts` (the panel), with `NoteDoc` assembly in `obsidian/store.ts`
-and colour plumbed through markers, clustering and `ui/map.ts`.
-
-203 tests passing; `npm run build` and `npm run lint` clean. M6 has **not yet
-been exercised in a real vault** — it was built and tested but not deployed, so
-the first thing to do is `npm run build:deploy`, reload Obsidian, and try the
-panel against `MAP_TEST/` and `TRIPS/`.
+M6 (filters and colour groups) and M7 (problems, settings, docs) have both been
+run in the real vault. What has **not** been exercised there yet is the last
+round of M7: the marker-size slider across its range, the "Go to default view"
+command, and the problems list against `MAP_TEST/Malformed geotags.md`. That
+note's six broken geotags are the fixture the milestone was defined by, so that
+is the first thing to check.
 
 The repo directory is still `obsidian-map` although the plugin was renamed to
 Ferry Map (id `ferry-map`). Renaming the directory is a bare `mv` — nothing in
 the repo refers to it.
 
-## What M7 has to build
+There is **no git remote**. That is why `.github/workflows/check.yml` was not
+added: it would never run. Worth adding the day this is pushed anywhere.
 
-Three things, and the last of them is the one that has been deferred twice:
+## What is left
 
-1. A **problems list** — the malformed geotags the index has been collecting
-   since M1 and never showing. `store.problems()` already returns them, each
-   carrying path, raw text, reason, source, key and line.
-2. A **settings tab** — tile URLs and attribution are already there; copy
-   precision, default centre/zoom and marker size are not.
-3. **README** — syntax, the unresolved-link consequence, the third-party tile
-   services, and the deploy loop.
+Nothing is outstanding against v1. What remains is a decision about where this
+goes next, and the honest answers are:
+
+-   **Use it for a while.** Every deviation found so far came from using it, not
+    from reading it. Two rounds of that have already paid for themselves.
+-   **Beyond v1**, VISION.md's out-of-scope list is the place to look. Content
+    matching in queries is the cheapest of them: `core/query.ts` is built to take
+    one more predicate and `matches` one more case, but it means reading files
+    rather than consulting the cache, which is the line v1 deliberately holds.
+-   **Publishing** would mean a remote, CI, and a look at the tile providers'
+    usage policies — the defaults are fine for personal use, not redistribution.
 
 ## Conventions this codebase holds to
 
-These are consistent throughout and M7 should not break them.
+These are consistent throughout and should not be broken casually.
 
-- **`src/core/` never imports `obsidian`.** Not even for types — where a shape
-  from the app is needed it is declared structurally (see `MetadataLike` in
-  `core/geotags.ts`) and a compile-time guard in `obsidian/metadata.ts` fails
-  the build if the real type stops satisfying it. This is what makes the core
-  testable in a `node` jest environment.
-- **`src/ui/map.ts` is the only module that imports Leaflet**, and it does not
-  import `obsidian`. It emits events (`onSelect`, `onContextMenu`) and the view
-  decides what they mean. Keep Obsidian `Menu`s and notices in `view.ts`.
-- **Logic worth testing goes in `core/`, even when it is UI-adjacent.**
-  `clustering.ts`, `markers.ts`, `query.ts` and `groups.ts` are all "UI"
-  concerns living in core precisely so they can be tested. A problems list is
-  mostly presentation, but any grouping or ordering rule belongs in core.
-- Tests sit beside sources as `X.test.ts`. Prettier and `tsc --noEmit` run via
-  `npm run lint` / `npm run compile`.
-- Comments explain *why*, not *what*, per the repo's CLAUDE.md. Several
-  non-obvious decisions are documented in place — read them before changing the
-  code they sit on.
+-   **`src/core/` never imports `obsidian`.** Not even for types — where a shape
+    from the app is needed it is declared structurally (see `MetadataLike` in
+    `core/geotags.ts`) and a compile-time guard in `obsidian/metadata.ts` fails
+    the build if the real type stops satisfying it. This is what makes the core
+    testable in a `node` jest environment.
+-   **`src/ui/map.ts` is the only module that imports Leaflet**, and it does not
+    import `obsidian`. It emits events and the view decides what they mean. Keep
+    Obsidian `Menu`s and notices in `view.ts`.
+-   **Logic worth testing goes in `core/`, even when it is UI-adjacent.**
+    `clustering.ts`, `markers.ts`, `query.ts`, `groups.ts`, `suggest.ts` and
+    `problems.ts` are all "UI" concerns living in core precisely so they can be
+    tested. The rule of thumb: if it has an ordering rule, a parsing rule or an
+    off-by-one in it, it belongs in core.
+-   Tests sit beside sources as `X.test.ts`. Prettier and `tsc --noEmit` run via
+    `npm run lint` / `npm run compile`.
+-   Comments explain _why_, not _what_, per the repo's CLAUDE.md. Several
+    non-obvious decisions are documented in place — read them before changing the
+    code they sit on.
 
 ## Things that will bite you
 
-- **Pin identity is `path#ordinal`** (`core/markers.ts`) and cluster identity is
-  `firstMemberId+count` (`core/clustering.ts`). Both deliberately exclude
-  coordinates *and colour*, so an edit moves a pin and a recolour restyles it,
-  rather than either destroying and recreating it. Do not put anything else in
-  an id without asking what re-renders as a result.
-- **Markers never use `L.Icon.Default`.** Leaflet resolves its default icons
-  from a runtime script path that does not exist inside Obsidian. Everything is
-  `L.divIcon`. Verified in M0; do not "fix" this back.
-- **Store notifications are coalesced to one per frame** and the scheduler is
-  injectable (`GeoStore`'s second constructor argument) so tests can drive it.
-  The control panel debounces its own typing separately, at 200 ms.
-- **`GeoStore` keeps a `NoteDoc` per indexed note in lockstep with the index.**
-  If you add a way for a note to enter or leave the index, it has to maintain
-  both — `store.doc(path)` throws for a path it does not know, deliberately, so
-  a desync fails loudly rather than silently filtering pins away.
-- **Settings are edited in place** (a tile URL, a group's colour), which is why
-  `loadSettings` clones the defaults rather than shallow-merging onto them. A
-  shallow merge hands out `DEFAULT_SETTINGS`'s own objects to be mutated.
-- Filtering happens in `buildMarkers`, **before** clustering, or cluster counts
-  would include pins that are not shown.
-- The control panel is a **sibling** of the Leaflet container, not a child. Put
-  the problems list in the same place if it overlays the map, for the same
-  reason: a child would feed Leaflet every drag and right-click.
+-   **Pin identity is `path#ordinal`** (`core/markers.ts`) and cluster identity is
+    `firstMemberId+count` (`core/clustering.ts`). Both deliberately exclude
+    coordinates _and colour_, so an edit moves a pin and a recolour restyles it,
+    rather than either destroying and recreating it. Do not put anything else in
+    an id without asking what re-renders as a result.
+-   **Marker _size_ is the exception**: it cannot be restyled in place, because
+    the icon carries the size and Leaflet anchors the element by it. So
+    `setMarkerSize` tears every pin down and rebuilds. That is fine for a settings
+    slider and would not be for anything on a hot path.
+-   **Markers never use `L.Icon.Default`.** Leaflet resolves its default icons
+    from a runtime script path that does not exist inside Obsidian. Everything is
+    `L.divIcon`. Verified in M0; do not "fix" this back.
+-   **Store notifications are coalesced to one per frame** and the scheduler is
+    injectable (`GeoStore`'s second constructor argument) so tests can drive it.
+    The control panel debounces its own typing separately, at 200 ms, and the view
+    debounces settings writes at 500 ms.
+-   **`GeoStore` keeps a `NoteDoc` per indexed note in lockstep with the index.**
+    If you add a way for a note to enter or leave the index, it has to maintain
+    both — `store.doc(path)` throws for a path it does not know, deliberately, so
+    a desync fails loudly rather than silently filtering pins away.
+-   **Settings are edited in place** (a tile URL, a group's colour), which is why
+    `loadSettings` clones the defaults rather than shallow-merging onto them. A
+    shallow merge hands out `DEFAULT_SETTINGS`'s own objects to be mutated. The
+    same shallow assign is what lets a settings file written before M7 pick up
+    `home`, `precision` and `markerSize` as defaults.
+-   Filtering happens in `buildMarkers`, **before** clustering, or cluster counts
+    would include pins that are not shown.
+-   **The control panel is a sibling of the Leaflet container**, not a child, so a
+    drag or right-click inside it is never also one on the map. Anything else
+    overlaying the map should go in the same place for the same reason.
+-   **Type-ahead reads the caret, not the input's value.** Obsidian's
+    `AbstractInputSuggest` hands `getSuggestions` the whole value, which is not
+    enough — a query is several terms and only the one under the caret is being
+    completed. `ui/suggest.ts` ignores the argument and reads `selectionStart`.
 
 ## How to verify
 
@@ -91,6 +103,7 @@ These are consistent throughout and M7 should not break them.
 npm test                # unit tests
 npm run build           # typecheck + bundle
 npm run deploy          # copies into the vault in .deploy.local.json
+npm run build:deploy    # both
 ```
 
 The deploy target is a real vault at `/path/to/your/vault`
@@ -100,27 +113,16 @@ plugin, so Obsidian needs a manual reload (Ctrl+R) after each deploy.
 That vault contains **`MAP_TEST/`**, eight fixture notes each stating what it
 expects — including `Ordinary links.md`, whose expectation is that it produces
 nothing at all, and `Malformed geotags.md`, whose six broken geotags should
-produce no pins. See `MAP_TEST/README.md`. Those six are exactly what M7's
-problems list has to surface, so that note is the milestone's fixture. The
-vault also contains the user's real trip notes under `TRIPS/`, two of which
-carry genuine geotags.
+produce no pins but six rows in the panel's Problems section. See
+`MAP_TEST/README.md`. The vault also contains the user's real trip notes under
+`TRIPS/`, two of which carry genuine geotags.
 
 **Mutation-test anything with rules in it.** The convention here has been to
-break the implementation deliberately and confirm a test fails — it caught real
-gaps in the coordinate parser, the folder-prefix sweep, and (in M6) a query
-parser that would have read `- skye` as an exclusion of Skye. A green suite is
-not evidence on its own. Two M6 mutants survived: one was that genuine gap, and
-the other showed a branch that could not affect the output, which was then
-removed. Both outcomes are worth having.
+break the implementation deliberately and confirm a test fails — it has caught
+real gaps in the coordinate parser, the folder-prefix sweep, a query parser that
+would have read `- skye` as an exclusion of Skye, a case-insensitive sort tested
+with values that sorted the same either way, and a defensive array copy that
+protected nothing and was removed. A green suite is not evidence on its own.
 
-## Open questions worth putting to the user
-
-- **Where the problems list lives**: a dismissible banner over the map (as
-  PLANNING.md sketches), a section inside the existing control panel, or the
-  view header. The panel now exists, which it did not when M7 was written down,
-  so the third option is cheaper than it was.
-- **Whether M6 matches graph view closely enough** once they have used it. The
-  documented deviations are content matching (absent, by agreement) and
-  `file:md` not matching every note. Everything else was built for parity but
-  parity was judged against the documented behaviour, not against a running
-  graph view.
+Revert mutants by **copying a backup file back**, not with `git checkout --` —
+uncommitted work has been lost to that once already.
