@@ -6,15 +6,14 @@ the things you would otherwise have to rediscover.
 
 ## Where things stand
 
-**M0–M7 are done. Everything PLANNING.md scoped for v1 is built.** 263 tests;
-`npm test`, `npm run build` and `npm run lint` all clean.
+**M0–M7 are done — everything PLANNING.md scoped for v1 — plus M8, journeys.**
+278 tests; `npm test`, `npm run build` and `npm run lint` all clean.
 
-M6 (filters and colour groups) and M7 (problems, settings, docs) have both been
-run in the real vault. What has **not** been exercised there yet is the last
-round of M7: the marker-size slider across its range, the "Go to default view"
-command, and the problems list against `MAP_TEST/Malformed geotags.md`. That
-note's six broken geotags are the fixture the milestone was defined by, so that
-is the first thing to check.
+What has **not** been exercised in the real vault yet: the marker-size slider
+across its range, the "Go to default view" command, the problems list against
+`MAP_TEST/Malformed geotags.md`, and all of M8. That note's six broken geotags
+are the fixture M7 was defined by, and `TRIPS/` is where journey lines will
+first be seen in anger, so those two are the first things to check.
 
 The repo directory is still `obsidian-map` although the plugin was renamed to
 Ferry Map (id `ferry-map`). Renaming the directory is a bare `mv` — nothing in
@@ -92,6 +91,10 @@ These are consistent throughout and should not be broken casually.
 -   **The control panel is a sibling of the Leaflet container**, not a child, so a
     drag or right-click inside it is never also one on the map. Anything else
     overlaying the map should go in the same place for the same reason.
+-   **Journey lines are `interactive: false`** and sit in a layer group added
+    before the pins. Both matter: a line runs under the pins it joins and across
+    the rest of the map, so an interactive one would take clicks meant for a pin
+    and right-clicks meant for "Copy geotag".
 -   **Type-ahead reads the caret, not the input's value.** Obsidian's
     `AbstractInputSuggest` hands `getSuggestions` the whole value, which is not
     enough — a query is several terms and only the one under the caret is being
