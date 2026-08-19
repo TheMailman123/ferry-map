@@ -80,6 +80,10 @@ Open it from the ribbon globe or the **Open Ferry Map** command.
     drawn as one pin carrying a count; clicking that offers a choice.
 -   **Right-clicking the map** offers "Copy geotag" and "Copy coordinates",
     putting text on the clipboard for you to paste. The map never edits a note.
+-   **A note with several geotags** is drawn as a journey: its pins are joined
+    by a line, in the order the geotags appear in the note. Properties come
+    first, since frontmatter sits above the body. The line takes the note's
+    group colour, and a filter that hides the note hides its line too.
 -   **The gear button** opens filters, colour groups and any problems.
 
 ### Filters and colour groups

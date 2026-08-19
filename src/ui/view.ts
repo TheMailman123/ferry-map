@@ -10,6 +10,7 @@ import { compileGroups, noteStyler } from "../core/groups";
 import { MapMarker, buildMarkers } from "../core/markers";
 import { groupProblems } from "../core/problems";
 import { parseQuery } from "../core/query";
+import { buildRoutes } from "../core/routes";
 import type FerryMapPlugin from "../main";
 import { MapControls } from "./controls";
 import { MapSurface } from "./map";
@@ -131,13 +132,14 @@ export class FerryMapView extends ItemView {
             compileGroups(groups)
         );
 
+        const tags = this.plugin.store.tags();
+
         this.surface?.setMarkers(
-            buildMarkers(
-                this.plugin.store.tags(),
-                (tag) => this.openNote(tag),
-                styleFor
-            )
+            buildMarkers(tags, (tag) => this.openNote(tag), styleFor)
         );
+        // Built from the same tags and the same styler, so a filter can never
+        // hide a note's pins while leaving its journey behind.
+        this.surface?.setRoutes(buildRoutes(tags, styleFor));
     }
 
     /** Take on a change from the control panel: redraw, and remember it. */

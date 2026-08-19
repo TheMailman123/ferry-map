@@ -377,3 +377,17 @@
     color: var(--text-faint);
     font-size: var(--font-ui-smaller);
 }
+
+/* The line joining one note's geotags into the journey they describe. Leaflet
+   writes stroke, width and opacity as presentation attributes, which these
+   rules outrank, so the colour can come from a custom property like a pin's. */
+.ferry-map-route {
+    fill: none;
+    stroke: var(--ferry-map-route-colour, var(--interactive-accent));
+    stroke-width: 2.5;
+    /* Translucent so a journey reads as context for its pins rather than
+       competing with them, and so overlapping legs stay distinguishable. */
+    stroke-opacity: 0.65;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+}

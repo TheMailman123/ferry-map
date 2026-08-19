@@ -15,6 +15,7 @@ import {
 } from "../core/coordinates";
 import { Cluster, ColourSlice, clusterMarkers } from "../core/clustering";
 import { MapMarker } from "../core/markers";
+import { Route } from "../core/routes";
 import { BaseLayerId, SavedMapView, TileLayerSettings } from "./settings";
 
 export type { MapMarker };
@@ -42,6 +43,12 @@ const PIN_CLASS = "ferry-map-pin";
 
 /** Set on a pin standing for more than one colour. */
 const MIXED_CLASS = "is-mixed";
+
+/** The journey line joining one note's geotags. Styled by `styles.css`. */
+const ROUTE_CLASS = "ferry-map-route";
+
+/** Custom property the stylesheet reads a journey line's colour from. */
+const ROUTE_COLOUR_PROPERTY = "--ferry-map-route-colour";
 
 /** Custom property the stylesheet reads a group's colour from. */
 const MARKER_COLOUR_PROPERTY = "--ferry-map-marker-colour";
@@ -97,8 +104,12 @@ export class MapSurface {
         event: MouseEvent
     ) => void;
     private readonly pins: L.LayerGroup;
+    /** Journey lines. A separate group so they stay beneath the pins. */
+    private readonly trails: L.LayerGroup;
     /** Drawn clusters, by cluster id. */
     private readonly markers = new Map<string, L.Marker>();
+    /** Drawn journey lines, by route id, which is the note's path. */
+    private readonly lines = new Map<string, L.Polyline>();
     /** The markers to draw, before clustering for the current zoom. */
     private pending: MapMarker[] = [];
     private activeLayer: BaseLayerId;
@@ -125,6 +136,10 @@ export class MapSurface {
             layers: [this.layers[this.activeLayer]],
         });
 
+        // Added before the pins so the lines sit underneath them: a journey is
+        // context for its stops, and a line drawn over a pin would cross the
+        // thing it is meant to be joining.
+        this.trails = L.layerGroup().addTo(this.map);
         this.pins = L.layerGroup().addTo(this.map);
 
         L.control
@@ -162,6 +177,32 @@ export class MapSurface {
     setMarkers(markers: MapMarker[]): void {
         this.pending = markers;
         this.drawPins();
+    }
+
+    /**
+     * Bring the displayed journey lines in line with `routes`.
+     *
+     * Reconciled by id like the pins, and for the same reason: editing one
+     * note's journey should move that line and leave every other one alone.
+     *
+     * Unlike the pins these do not depend on zoom — Leaflet reprojects a
+     * polyline itself — so this runs only when the notes change.
+     */
+    setRoutes(routes: Route[]): void {
+        const wanted = new Set(routes.map((route) => route.id));
+
+        for (const [id, existing] of this.lines) {
+            if (!wanted.has(id)) {
+                existing.remove();
+                this.lines.delete(id);
+            }
+        }
+
+        for (const route of routes) {
+            const existing = this.lines.get(route.id);
+            if (existing) this.updateLine(existing, route);
+            else this.lines.set(route.id, this.createLine(route));
+        }
     }
 
     /**
@@ -341,6 +382,32 @@ export class MapSurface {
             this.onSelect(cluster, event.originalEvent)
         );
     }
+
+    /**
+     * Draw one note's journey.
+     *
+     * Non-interactive on purpose. The line runs under the pins it joins and
+     * across whatever else is on the map, so making it clickable would take
+     * clicks meant for a pin and right-clicks meant for "Copy geotag".
+     */
+    private createLine(route: Route): L.Polyline {
+        const line = L.polyline(toLatLngs(route.points), {
+            className: ROUTE_CLASS,
+            interactive: false,
+        });
+
+        line.addTo(this.trails);
+        // Only possible once the path has been added and Leaflet has built its
+        // SVG element.
+        paintLine(line, route.colour);
+
+        return line;
+    }
+
+    private updateLine(existing: L.Polyline, route: Route): void {
+        existing.setLatLngs(toLatLngs(route.points));
+        paintLine(existing, route.colour);
+    }
 }
 
 /**
@@ -432,6 +499,34 @@ function stops(slices: readonly ColourSlice[]): string {
             return `${colour} ${from}deg ${to}deg`;
         })
         .join(", ");
+}
+
+/**
+ * Colour a journey line, or leave it to the theme's default.
+ *
+ * Set as a custom property on the SVG path, the same way a pin is coloured, so
+ * the stylesheet keeps control of how a line is drawn. Leaflet writes its own
+ * `stroke` as a presentation attribute, which CSS outranks.
+ */
+function paintLine(line: L.Polyline, colour: string | null): void {
+    const el = line.getElement();
+    if (!(el instanceof SVGElement)) return;
+
+    if (colour) el.style.setProperty(ROUTE_COLOUR_PROPERTY, colour);
+    else el.style.removeProperty(ROUTE_COLOUR_PROPERTY);
+}
+
+/**
+ * A route's points as Leaflet wants them.
+ *
+ * Longitudes are passed through unchanged, so a journey between two points
+ * either side of the antimeridian is drawn the long way round rather than
+ * across the seam. Both are defensible readings of two coordinates and neither
+ * is knowable from the note; the long way is at least the one that matches the
+ * numbers written down.
+ */
+function toLatLngs(points: Coordinate[]): L.LatLngTuple[] {
+    return points.map((point) => [point.lat, point.lon]);
 }
 
 /** Plain-text label, for the marker's title and accessible name. */
