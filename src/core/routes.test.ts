@@ -121,6 +121,15 @@ describe("buildRoutes", () => {
         expect(tags.map((t) => t.coordinate.lat)).toEqual([2, 1]);
     });
 
+    it("names the note it came from, for the line's tooltip", () => {
+        const routes = buildRoutes([
+            tag("TRIPS/Isle of Skye.md", 1, 1, 0),
+            tag("TRIPS/Isle of Skye.md", 2, 2, 1),
+        ]);
+
+        expect(routes[0].noteName).toBe("Isle of Skye");
+    });
+
     it("takes the note's group colour", () => {
         const routes = buildRoutes(
             [tag("a.md", 1, 1, 0), tag("a.md", 2, 2, 1)],

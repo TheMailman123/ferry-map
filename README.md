@@ -83,7 +83,8 @@ Open it from the ribbon globe or the **Open Ferry Map** command.
 -   **A note with several geotags** is drawn as a journey: its pins are joined
     by a line, in the order the geotags appear in the note. Properties come
     first, since frontmatter sits above the body. The line takes the note's
-    group colour, and a filter that hides the note hides its line too.
+    group colour, and a filter that hides the note hides its line too. Hover it
+    to see which note drew it.
 -   **The gear button** opens filters, colour groups and any problems.
 
 ### Filters and colour groups

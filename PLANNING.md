@@ -296,8 +296,12 @@ positions: a journey is between the places, and a line snapping to cluster
 centres would move as the map zoomed.
 
 The lines are a layer group added **before** the pins, so they run underneath
-them, and are `interactive: false` so they never take a click meant for a pin or
-a right-click meant for "Copy geotag".
+them. They are interactive only so they can be hovered — a line crossing the map
+says nothing about which note drew it, and the tooltip is the only thing that
+does — with `bubblingMouseEvents` so mouse events still reach the map and a
+right-click on a line lands on "Copy geotag" rather than being swallowed. Clicks
+on a line are deliberately unhandled: a line is context for its stops, and the
+stops are what open notes.
 
 **Known limitation:** a journey between two points either side of the
 antimeridian is drawn the long way round. Both readings are defensible and

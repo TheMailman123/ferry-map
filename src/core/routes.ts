@@ -13,6 +13,7 @@
 import { Coordinate } from "./coordinates";
 import { GeoTag } from "./geotags";
 import { NoteStyle } from "./groups";
+import { noteName } from "./labels";
 
 /** One note's geotags, in the order they appear in it. */
 export interface Route {
@@ -25,6 +26,8 @@ export interface Route {
      */
     id: string;
     path: string;
+    /** The note's name, which is what hovering the line reports. */
+    noteName: string;
     /** Two or more points. A note with fewer is not a journey and has no route. */
     points: Coordinate[];
     /** Colour from the first matching group, or null for the default. */
@@ -77,6 +80,7 @@ export function buildRoutes(
         routes.push({
             id: path,
             path,
+            noteName: noteName(path),
             // Safe to sort in place: the loop above built this array, so it is
             // never the one the caller passed in.
             points: found.sort(byFilePosition).map((tag) => tag.coordinate),

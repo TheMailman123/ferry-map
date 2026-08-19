@@ -386,16 +386,24 @@ export class MapSurface {
     /**
      * Draw one note's journey.
      *
-     * Non-interactive on purpose. The line runs under the pins it joins and
-     * across whatever else is on the map, so making it clickable would take
-     * clicks meant for a pin and right-clicks meant for "Copy geotag".
+     * Interactive only so it can be hovered: a line crossing the map says
+     * nothing about which note drew it, and the tooltip is the only thing that
+     * does. `bubblingMouseEvents` keeps that from costing anything — mouse
+     * events pass through to the map, so a right-click on a line still reaches
+     * "Copy geotag" rather than being swallowed by the line.
+     *
+     * Clicks are deliberately not handled. A line is context for its stops; the
+     * stops are what open notes.
      */
     private createLine(route: Route): L.Polyline {
         const line = L.polyline(toLatLngs(route.points), {
             className: ROUTE_CLASS,
-            interactive: false,
+            bubblingMouseEvents: true,
         });
 
+        // Sticky, so a line crossing half the map reports itself wherever it is
+        // pointed at rather than at one fixed end of itself.
+        line.bindTooltip(routeTooltip(route), { sticky: true });
         line.addTo(this.trails);
         // Only possible once the path has been added and Leaflet has built its
         // SVG element.
@@ -406,6 +414,7 @@ export class MapSurface {
 
     private updateLine(existing: L.Polyline, route: Route): void {
         existing.setLatLngs(toLatLngs(route.points));
+        existing.setTooltipContent(routeTooltip(route));
         paintLine(existing, route.colour);
     }
 }
@@ -499,6 +508,19 @@ function stops(slices: readonly ColourSlice[]): string {
             return `${colour} ${from}deg ${to}deg`;
         })
         .join(", ");
+}
+
+/**
+ * What hovering a journey line says: the note that drew it.
+ *
+ * Built as DOM rather than passed as a string, because Leaflet renders a string
+ * tooltip as HTML and a note name is arbitrary user text.
+ */
+function routeTooltip(route: Route): HTMLElement {
+    const el = document.createElement("div");
+    el.addClass("ferry-map-tooltip");
+    el.createDiv({ cls: "ferry-map-tooltip-label" }).setText(route.noteName);
+    return el;
 }
 
 /**
