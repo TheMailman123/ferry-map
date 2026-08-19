@@ -138,8 +138,12 @@ export class FerryMapView extends ItemView {
             buildMarkers(tags, (tag) => this.openNote(tag), styleFor)
         );
         // Built from the same tags and the same styler, so a filter can never
-        // hide a note's pins while leaving its journey behind.
-        this.surface?.setRoutes(buildRoutes(tags, styleFor));
+        // hide a note's pins while leaving its journey behind. Turned off, the
+        // surface is told there are no routes rather than left holding the last
+        // set it drew.
+        this.surface?.setRoutes(
+            this.plugin.settings.journeys ? buildRoutes(tags, styleFor) : []
+        );
     }
 
     /** Take on a change from the control panel: redraw, and remember it. */
@@ -172,6 +176,9 @@ export class FerryMapView extends ItemView {
     /** Take on settings changed from the settings tab while the map is open. */
     applySettings(): void {
         this.surface?.setMarkerSize(this.plugin.settings.markerSize);
+        // Redrawn because the journey toggle changes what should be on the map,
+        // not just how it looks.
+        this.drawMarkers();
     }
 
     /**

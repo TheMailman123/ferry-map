@@ -52,6 +52,8 @@ export interface FerryMapSettings {
     precision: number;
     /** Diameter of an ordinary pin, in pixels. */
     markerSize: number;
+    /** Whether a note's geotags are joined into a journey line. */
+    journeys: boolean;
     controls: ControlsState;
 }
 
@@ -116,6 +118,7 @@ export const DEFAULT_SETTINGS: FerryMapSettings = {
     home: { lat: 20, lon: 0, zoom: 2, layer: "map" },
     precision: DEFAULT_PRECISION,
     markerSize: DEFAULT_MARKER_SIZE,
+    journeys: true,
     controls: { filter: "", groups: [], open: false },
 };
 
@@ -160,6 +163,7 @@ export class FerryMapSettingTab extends PluginSettingTab {
 
         this.defaultViewSetting();
         this.markerSizeSetting();
+        this.journeySetting();
 
         containerEl.createEl("h2", { text: "Copying" });
 
@@ -212,6 +216,31 @@ export class FerryMapSettingTab extends PluginSettingTab {
                     .setDynamicTooltip()
                     .onChange(async (value) => {
                         this.plugin.settings.markerSize = value;
+                        await this.plugin.saveSettings();
+                        this.plugin.applySettings();
+                    })
+            );
+    }
+
+    /**
+     * Whether journey lines are drawn.
+     *
+     * On by default, because a note with several geotags is usually a trip and
+     * the order is most of what it is saying. Off is for vaults where enough
+     * notes carry enough geotags that the lines become the map.
+     */
+    private journeySetting(): void {
+        new Setting(this.containerEl)
+            .setName("Journey lines")
+            .setDesc(
+                "Join a note's geotags with a line, in the order they appear " +
+                    "in the note."
+            )
+            .addToggle((toggle) =>
+                toggle
+                    .setValue(this.plugin.settings.journeys)
+                    .onChange(async (value) => {
+                        this.plugin.settings.journeys = value;
                         await this.plugin.saveSettings();
                         this.plugin.applySettings();
                     })

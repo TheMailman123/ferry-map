@@ -303,6 +303,11 @@ a right-click meant for "Copy geotag".
 antimeridian is drawn the long way round. Both readings are defensible and
 neither is knowable from the note, so the numbers as written win.
 
+A **Journey lines** setting turns them off. Built after the fact rather than
+up front: the requirement was the lines, and a toggle is only worth its settings
+row once the lines are dense enough to be in the way — which is a judgement that
+needed the feature to exist first.
+
 **Done:** a note with several geotags draws a line through them in file order.
 278 tests, including a mutation pass over the ordering and grouping.
 

@@ -118,6 +118,9 @@ completing to a tag no pin carries would just empty the map.
     view** command returns there. It is kept apart from the position the map
     remembers between sessions, which every pan overwrites.
 -   **Marker size** — pin diameter. Applies to an open map immediately.
+-   **Journey lines** — whether a note's geotags are joined into a line. On by
+    default; turn it off in a vault where enough notes carry enough geotags that
+    the lines become the map.
 -   **Coordinate precision** — decimal places used when copying. Four places is
     about 11 m, which is enough to identify a place and honest about what a click
     on a map actually knows.
