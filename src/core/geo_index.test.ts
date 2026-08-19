@@ -12,6 +12,7 @@ function oneTag(path: string, lat: number, lon: number): GeoTagExtraction {
                 source: "body",
                 key: null,
                 line: 0,
+                headingTrail: [],
             },
         ],
         problems: [],

@@ -8,6 +8,7 @@ import {
 import { GeoTag } from "../core/geotags";
 import { compileGroups, noteStyler } from "../core/groups";
 import { MapMarker, buildMarkers } from "../core/markers";
+import { pinDescription } from "../core/labels";
 import { groupProblems } from "../core/problems";
 import { parseQuery } from "../core/query";
 import { buildRoutes } from "../core/routes";
@@ -210,7 +211,9 @@ export class FerryMapView extends ItemView {
         for (const member of cluster.members) {
             menu.addItem((item) =>
                 item
-                    .setTitle(memberTitle(member))
+                    // The same line the map's tooltip shows, so the option a
+                    // hovered pin promises is the one the picker offers.
+                    .setTitle(pinDescription(member))
                     .setIcon("map-pin")
                     .onClick(() => member.onSelect())
             );
@@ -322,16 +325,4 @@ export class FerryMapView extends ItemView {
             this.saveTimer = null;
         }
     }
-}
-
-/**
- * How one option reads in the picker.
- *
- * Aliased geotags are named by their alias, which alone would not say which
- * note opening it leads to, so the note is appended where the two differ.
- */
-function memberTitle(member: MapMarker): string {
-    return member.label === member.noteName
-        ? member.label
-        : `${member.label} — ${member.noteName}`;
 }

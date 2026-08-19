@@ -7,7 +7,8 @@ function tag(
     lat: number,
     lon: number,
     alias: string | null = null,
-    line: number | null = 0
+    line: number | null = 0,
+    headingTrail: string[] = []
 ): GeoTag {
     return {
         coordinate: { lat, lon },
@@ -16,6 +17,7 @@ function tag(
         source: "body",
         key: null,
         line,
+        headingTrail,
     };
 }
 
@@ -140,6 +142,23 @@ describe("buildMarkers", () => {
         const [marker] = buildMarkers([tag("a.md", 58, -4)], noop);
 
         expect(marker.colour).toBeNull();
+    });
+});
+
+describe("buildMarkers: headings", () => {
+    it("carries a geotag's sections onto its pin", () => {
+        const [marker] = buildMarkers(
+            [tag("trips/skye.md", 57.4, -6.1, "Elgol", 12, ["Skye", "Day 2"])],
+            noop
+        );
+
+        expect(marker.headingTrail).toEqual(["Skye", "Day 2"]);
+    });
+
+    it("leaves a pin from an unsectioned geotag with none", () => {
+        const [marker] = buildMarkers([tag("a.md", 0, 0)], noop);
+
+        expect(marker.headingTrail).toEqual([]);
     });
 });
 

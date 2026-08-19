@@ -22,6 +22,7 @@ function marker(
         coordinate: { lat, lon },
         label: id,
         noteName: id,
+        headingTrail: [],
         colour,
         onSelect: () => undefined,
     };

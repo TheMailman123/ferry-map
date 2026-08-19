@@ -75,9 +75,13 @@ irreversible: disable it and your geotags are ordinary links again.
 
 Open it from the ribbon globe or the **Open Ferry Map** command.
 
+-   **Hovering a pin** names it, then says where it came from: the note, and the
+    headings the geotag was written under — `Skye › Day 2 › Morning`. A geotag
+    in a property has no heading above it, so it shows the note alone.
 -   **Clicking a pin** opens its note, at the geotag's own line where the geotag
     is in the body. Where pins are too close together to tell apart they are
-    drawn as one pin carrying a count; clicking that offers a choice.
+    drawn as one pin carrying a count; hovering that lists what is underneath
+    and clicking it offers a choice.
 -   **Right-clicking the map** offers "Copy geotag" and "Copy coordinates",
     putting text on the clipboard for you to paste. The map never edits a note.
 -   **A note with several geotags** is drawn as a journey: its pins are joined

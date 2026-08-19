@@ -14,6 +14,7 @@ import {
     normaliseLongitude,
 } from "../core/coordinates";
 import { Cluster, ColourSlice, clusterMarkers } from "../core/clustering";
+import { originPath, pinDescription } from "../core/labels";
 import { MapMarker } from "../core/markers";
 import { Route } from "../core/routes";
 import { BaseLayerId, SavedMapView, TileLayerSettings } from "./settings";
@@ -573,11 +574,12 @@ function tooltipContent(cluster: Cluster): HTMLElement {
 
         el.createDiv({ cls: "ferry-map-tooltip-label" }).setText(marker.label);
 
-        // Redundant when the pin is labelled by its note; useful when it is not.
-        if (marker.label !== marker.noteName) {
-            el.createDiv({ cls: "ferry-map-tooltip-note" }).setText(
-                marker.noteName
-            );
+        // Where the pin came from: its note, and the sections within it. Left
+        // out only when it would repeat the label exactly, which happens for an
+        // unaliased pin in a note with no headings.
+        const origin = originPath(marker);
+        if (origin !== marker.label) {
+            el.createDiv({ cls: "ferry-map-tooltip-note" }).setText(origin);
         }
 
         return el;
@@ -589,7 +591,7 @@ function tooltipContent(cluster: Cluster): HTMLElement {
 
     const list = el.createDiv({ cls: "ferry-map-tooltip-note" });
     for (const marker of cluster.members.slice(0, TOOLTIP_MEMBER_LIMIT)) {
-        list.createDiv().setText(marker.label);
+        list.createDiv().setText(pinDescription(marker));
     }
 
     const hidden = cluster.members.length - TOOLTIP_MEMBER_LIMIT;

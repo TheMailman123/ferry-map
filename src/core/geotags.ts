@@ -8,6 +8,7 @@
  */
 
 import { Coordinate, parseCoordinate } from "./coordinates";
+import { HeadingLike, headingTrail } from "./headings";
 
 /** Where in a note a geotag was written. */
 export type GeoTagSource = "body" | "property";
@@ -28,6 +29,14 @@ export interface GeoTag {
     key: string | null;
     /** Zero-based line in the body, for navigation. Null for properties. */
     line: number | null;
+    /**
+     * The headings the geotag was written under, outermost first, or empty
+     * where it was under none.
+     *
+     * Stored rather than derived at render time, unlike the label: it comes
+     * from the note's own text, which is exactly what a re-extraction follows.
+     */
+    headingTrail: string[];
 }
 
 /** A link that was geotag-shaped but unusable. Surfaced, never dropped. */
@@ -64,6 +73,7 @@ export interface MetadataLike {
         displayText?: string;
         key?: string;
     }>;
+    headings?: ReadonlyArray<HeadingLike>;
 }
 
 /**
@@ -99,6 +109,7 @@ export function extractGeoTags(
                 source,
                 key,
                 line,
+                headingTrail: headingTrail(line, metadata.headings),
             });
         } else if (parsed.kind === "malformed") {
             problems.push({

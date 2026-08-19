@@ -1,5 +1,5 @@
 import { GeoTag } from "./geotags";
-import { noteName, pinLabel } from "./labels";
+import { noteName, originPath, pinDescription, pinLabel } from "./labels";
 
 function tag(path: string, alias: string | null): GeoTag {
     return {
@@ -9,6 +9,7 @@ function tag(path: string, alias: string | null): GeoTag {
         source: "body",
         key: null,
         line: 0,
+        headingTrail: [],
     };
 }
 
@@ -51,5 +52,68 @@ describe("pinLabel", () => {
         expect(pinLabel(tag("TRIPS/20240612_COASTPATH.md", "Seal Cove"))).toBe(
             "Seal Cove"
         );
+    });
+});
+
+describe("originPath", () => {
+    it("is the note alone where the geotag is under no heading", () => {
+        expect(originPath({ noteName: "Skye", headingTrail: [] })).toBe("Skye");
+    });
+
+    it("puts the note before the section it contains", () => {
+        expect(originPath({ noteName: "Skye", headingTrail: ["Day 2"] })).toBe(
+            "Skye › Day 2"
+        );
+    });
+
+    it("keeps nested sections in order, outermost first", () => {
+        expect(
+            originPath({
+                noteName: "Skye",
+                headingTrail: ["Day 2", "Morning"],
+            })
+        ).toBe("Skye › Day 2 › Morning");
+    });
+});
+
+describe("pinDescription", () => {
+    it("names an aliased pin, then where it came from", () => {
+        expect(
+            pinDescription({
+                label: "Elgol",
+                noteName: "Skye",
+                headingTrail: ["Day 2"],
+            })
+        ).toBe("Elgol — Skye › Day 2");
+    });
+
+    it("does not repeat a note that is already the pin's label", () => {
+        expect(
+            pinDescription({
+                label: "Skye",
+                noteName: "Skye",
+                headingTrail: ["Day 2"],
+            })
+        ).toBe("Skye › Day 2");
+    });
+
+    it("is the note alone for an unaliased pin under no heading", () => {
+        expect(
+            pinDescription({
+                label: "Skye",
+                noteName: "Skye",
+                headingTrail: [],
+            })
+        ).toBe("Skye");
+    });
+
+    it("still names the note for an aliased pin under no heading", () => {
+        expect(
+            pinDescription({
+                label: "Elgol",
+                noteName: "Skye",
+                headingTrail: [],
+            })
+        ).toBe("Elgol — Skye");
     });
 });

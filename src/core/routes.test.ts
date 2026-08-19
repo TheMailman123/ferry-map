@@ -15,6 +15,7 @@ function tag(
         source: line === null ? "property" : "body",
         key: null,
         line,
+        headingTrail: [],
     };
 }
 

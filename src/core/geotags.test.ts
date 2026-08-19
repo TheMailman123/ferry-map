@@ -27,6 +27,7 @@ describe("extractGeoTags: body links", () => {
                 source: "body",
                 key: null,
                 line: 12,
+                headingTrail: [],
             },
         ]);
     });
@@ -104,6 +105,7 @@ describe("extractGeoTags: property links", () => {
                 source: "property",
                 key: "location",
                 line: null,
+                headingTrail: [],
             },
         ]);
     });
@@ -140,6 +142,73 @@ describe("extractGeoTags: property links", () => {
         const { tags } = extractGeoTags("a.md", cache);
 
         expect(tags.map((t) => t.source)).toEqual(["body", "property"]);
+    });
+});
+
+describe("extractGeoTags: headings", () => {
+    /** A heading as Obsidian caches it. */
+    function heading(text: string, level: number, line: number) {
+        return {
+            heading: text,
+            level,
+            position: { start: { line }, end: { line } },
+        };
+    }
+
+    const HEADINGS = [
+        heading("Skye", 1, 0),
+        heading("Day 2", 2, 8),
+        heading("Morning", 3, 10),
+    ];
+
+    it("records the sections a body geotag was written under", () => {
+        const cache: MetadataLike = {
+            links: [bodyLink("58.6276, -4.9997", 12)],
+            headings: HEADINGS,
+        };
+
+        const { tags } = extractGeoTags("trips/skye.md", cache);
+
+        expect(tags[0].headingTrail).toEqual(["Skye", "Day 2", "Morning"]);
+    });
+
+    it("gives each geotag the sections it is in, not the note's last", () => {
+        const cache: MetadataLike = {
+            links: [
+                bodyLink("58.6276, -4.9997", 9),
+                bodyLink("57.4125, -6.1961", 12),
+            ],
+            headings: HEADINGS,
+        };
+
+        const { tags } = extractGeoTags("trips/skye.md", cache);
+
+        expect(tags.map((tag) => tag.headingTrail)).toEqual([
+            ["Skye", "Day 2"],
+            ["Skye", "Day 2", "Morning"],
+        ]);
+    });
+
+    it("leaves a property geotag with no sections", () => {
+        // Properties are frontmatter, which is above every heading.
+        const cache: MetadataLike = {
+            frontmatterLinks: [propertyLink("58.6276, -4.9997", "location")],
+            headings: HEADINGS,
+        };
+
+        const { tags } = extractGeoTags("trips/skye.md", cache);
+
+        expect(tags[0].headingTrail).toEqual([]);
+    });
+
+    it("leaves a geotag in a note with no headings with none", () => {
+        const cache: MetadataLike = {
+            links: [bodyLink("58.6276, -4.9997", 12)],
+        };
+
+        const { tags } = extractGeoTags("trips/skye.md", cache);
+
+        expect(tags[0].headingTrail).toEqual([]);
     });
 });
 

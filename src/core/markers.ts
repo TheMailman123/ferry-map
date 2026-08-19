@@ -19,6 +19,8 @@ export interface MapMarker {
     label: string;
     /** The note the pin came from. Shown when it differs from the label. */
     noteName: string;
+    /** Headings the geotag sits under within that note, outermost first. */
+    headingTrail: string[];
     /** Colour from the first matching group, or null for the default pin. */
     colour: string | null;
     /** Called when the pin is selected. */
@@ -69,6 +71,7 @@ export function buildMarkers(
             coordinate: tag.coordinate,
             label: pinLabel(tag),
             noteName: noteName(tag.path),
+            headingTrail: tag.headingTrail,
             colour: style.colour,
             onSelect: () => onSelect(tag),
         });

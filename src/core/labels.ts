@@ -25,3 +25,39 @@ export function noteName(path: string): string {
 export function pinLabel(tag: GeoTag): string {
     return tag.alias ?? noteName(tag.path);
 }
+
+/** Between a note and its sections, and between one section and the next. */
+const TRAIL_SEPARATOR = " › ";
+
+/** Between a pin's own name and where it came from. */
+const NAME_SEPARATOR = " — ";
+
+/** What a pin points at: its note, and the sections within it. */
+export interface PinOrigin {
+    noteName: string;
+    /** Enclosing headings, outermost first. Empty where there are none. */
+    headingTrail: readonly string[];
+}
+
+/**
+ * Where a pin came from, written out: `Skye › Day 2 › Morning`.
+ *
+ * The note comes first because it is what the sections belong to — a heading
+ * called "Morning" means nothing until you know which note wrote it.
+ */
+export function originPath(origin: PinOrigin): string {
+    return [origin.noteName, ...origin.headingTrail].join(TRAIL_SEPARATOR);
+}
+
+/**
+ * A pin named and placed in one line: `Elgol — Skye › Day 2`.
+ *
+ * An unaliased pin is labelled by its note, so repeating the note after it
+ * would read `Skye — Skye`; there the origin stands alone.
+ */
+export function pinDescription(pin: PinOrigin & { label: string }): string {
+    const origin = originPath(pin);
+    return pin.label === pin.noteName
+        ? origin
+        : `${pin.label}${NAME_SEPARATOR}${origin}`;
+}
