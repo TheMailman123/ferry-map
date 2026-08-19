@@ -12,8 +12,9 @@ the things you would otherwise have to rediscover.
 What has **not** been exercised in the real vault yet: the marker-size slider
 across its range, the "Go to default view" command, the problems list against
 `MAP_TEST/Malformed geotags.md`, and all of M8. That note's six broken geotags
-are the fixture M7 was defined by, and `TRIPS/` is where journey lines will
-first be seen in anger, so those two are the first things to check.
+are the fixture M7 was defined by, and a folder of multi-geotag notes is where
+journey lines are first seen in anger, so those two are the first things to
+check.
 
 The repo directory is still `obsidian-map` although the plugin was renamed to
 Ferry Map (id `ferry-map`). Renaming the directory is a bare `mv` — nothing in
@@ -109,16 +110,17 @@ npm run deploy          # copies into the vault in .deploy.local.json
 npm run build:deploy    # both
 ```
 
-The deploy target is a real vault at `/path/to/your/vault`
-(configured in the gitignored `.deploy.local.json`). It has no hot-reload
-plugin, so Obsidian needs a manual reload (Ctrl+R) after each deploy.
+The deploy target is whatever vault `.deploy.local.json` names (gitignored, so
+the path never leaves your machine — see the deploy section of the README). If
+that vault has no hot-reload plugin, Obsidian needs a manual reload (Ctrl+R)
+after each deploy.
 
-That vault contains **`MAP_TEST/`**, eight fixture notes each stating what it
-expects — including `Ordinary links.md`, whose expectation is that it produces
-nothing at all, and `Malformed geotags.md`, whose six broken geotags should
-produce no pins but six rows in the panel's Problems section. See
-`MAP_TEST/README.md`. The vault also contains the user's real trip notes under
-`TRIPS/`, two of which carry genuine geotags.
+A test vault should contain a **`MAP_TEST/`** folder of fixture notes, each
+stating what it expects — including `Ordinary links.md`, whose expectation is
+that it produces nothing at all, and `Malformed geotags.md`, whose six broken
+geotags should produce no pins but six rows in the panel's Problems section.
+Alongside it, a folder of ordinary notes carrying real geotags is what shows
+whether the thing is any good in practice.
 
 **Mutation-test anything with rules in it.** The convention here has been to
 break the implementation deliberately and confirm a test fails — it has caught
