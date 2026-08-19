@@ -1,6 +1,6 @@
 import { Plugin } from "obsidian";
 import { Coordinate, parseCoordinate } from "./core/coordinates";
-import { linkTarget } from "./core/links";
+import { linkTargetUnder } from "./core/links";
 import { ObsidianIO, ObsidianInterface } from "./obsidian/adapter";
 import { GeoStore } from "./obsidian/store";
 import { watchVault } from "./obsidian/watcher";
@@ -144,7 +144,7 @@ export default class FerryMapPlugin extends Plugin {
     private interceptGeotagLink(event: MouseEvent): void {
         if (event.button !== 0 || event.defaultPrevented) return;
 
-        const target = geotagLinkUnder(event.target);
+        const target = linkTargetUnder(event.target);
         if (target === null) return;
 
         const parsed = parseCoordinate(target);
@@ -165,27 +165,4 @@ export default class FerryMapPlugin extends Plugin {
         const leaf = this.app.workspace.getLeavesOfType(FERRY_MAP_VIEW_TYPE)[0];
         return leaf?.view instanceof FerryMapView ? leaf.view : null;
     }
-}
-
-/**
- * The link target under a clicked element, or null if it was not a link.
- *
- * Rendered links — reading view and live preview alike — are anchors carrying
- * the target in `data-href`. When the editor is showing raw link syntax there
- * is no anchor, so the element's own text is read and unwrapped instead.
- */
-function geotagLinkUnder(clicked: EventTarget | null): string | null {
-    if (!(clicked instanceof HTMLElement)) return null;
-
-    const anchor = clicked.closest("a");
-    if (anchor) {
-        const href =
-            anchor.getAttribute("data-href") ?? anchor.getAttribute("href");
-        return href === null ? null : linkTarget(href);
-    }
-
-    const raw = clicked.closest(".cm-hmd-internal-link");
-    if (raw?.textContent) return linkTarget(raw.textContent);
-
-    return null;
 }
